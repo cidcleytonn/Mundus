@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mundus - Relatório Final</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700;800&display=swap');
+
+        :root {
+            --bg-main: #0a1128;
+            --header-bg: rgba(10, 17, 40, 0.95);    
+            --footer-bg: #050a17;
+            --card-bg: #121e42;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --color-correct: #10b981;
+            --color-danger: #ef4444;
+            --color-accent: #0284c7;
+            --text-main: #ffffff;
+            --text-muted: #cbd5e1;
+        }
+
+        body.light-mode {
+            --bg-main: #f0fdfa; 
+            --header-bg: #ffffff; 
+            --footer-bg: #e2e8f0;
+            --card-bg: #ffffff;
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --color-accent: #0ea5e9;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+        }
+
+        body { font-family: 'Inter', sans-serif; margin: 0; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-main); color: var(--text-main); transition: background 0.5s ease; }
+
+        header { position: sticky; top: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; background: var(--header-bg); backdrop-filter: blur(20px); box-shadow: 0 4px 20px rgba(0,0,0,0.05); transition: background 0.5s ease; }
+        .logo { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; gap: 12px; color: var(--text-main); text-decoration: none; letter-spacing: -1px;}
+        .logo img { width: 45px; height: 45px; border-radius: 12px; object-fit: cover;}
+        
+        .nav-controls { display: flex; align-items: center; gap: 20px; }
+        .user-badge { font-size: 0.95rem; font-weight: 600; color: var(--text-muted); }
+        .user-badge strong { color: var(--color-accent); font-family: 'Space Grotesk', sans-serif;}
+        .theme-toggle { background: rgba(128,128,128,0.2); border: none; color: var(--text-main); font-size: 1.2rem; cursor: pointer; transition: 0.3s; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center;}
+        .btn-logout { color: var(--color-danger); text-decoration: none; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; padding: 10px 20px; border-radius: 20px; background: rgba(239, 68, 68, 0.1); transition: 0.3s; }
+
+        main { flex: 1; padding: 50px 20px; display: flex; justify-content: center; }
+
+        .report-canvas { background: var(--card-bg); max-width: 1000px; width: 100%; border-radius: 40px; padding: 50px; box-shadow: 0 20px 50px rgba(0,0,0,0.15); border: 1px solid var(--glass-border);}
+
+        .hero-stats { text-align: center; border-bottom: 2px dashed var(--glass-border); padding-bottom: 40px; margin-bottom: 40px;}
+        .hero-stats h1 { font-family: 'Space Grotesk', sans-serif; margin: 0 0 10px 0; font-size: 3.5rem; font-weight: 800; letter-spacing: -2px; line-height: 1;}
+        .hero-stats p { color: var(--color-accent); margin: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; font-size: 1rem;}
+        
+        .big-numbers { display: flex; justify-content: center; gap: 80px; margin-top: 40px; flex-wrap: wrap;}
+        .stat-item { text-align: center; background: rgba(0,0,0,0.05); padding: 25px 40px; border-radius: 25px; border: 1px solid var(--glass-border);}
+        body.light-mode .stat-item { background: #f8fafc; }
+        .stat-item h2 { font-family: 'Space Grotesk', sans-serif; margin: 0; font-size: 4rem; font-weight: 800; line-height: 1; color: var(--text-main);}
+        .stat-item span { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); display: block; margin-top: 15px; font-weight: 700;}
+
+        .section-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 800; margin: 0 0 25px 0; color: var(--text-main); letter-spacing: -0.5px;}
+
+        .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 50px; background: rgba(0,0,0,0.03); border-radius: 20px; padding: 20px; border: 1px solid var(--glass-border);}
+        body.light-mode .table-responsive { background: #f8fafc; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0 8px; min-width: 600px; }
+        th, td { padding: 15px 20px; text-align: left; }
+        th { font-weight: 700; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 2px; color: var(--text-muted); border-bottom: 2px solid var(--glass-border);}
+        td { background: var(--card-bg); border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border); font-weight: 500;}
+        td:first-child { border-left: 1px solid var(--glass-border); border-radius: 15px 0 0 15px;}
+        td:last-child { border-right: 1px solid var(--glass-border); border-radius: 0 15px 15px 0;}
+
+        .progress-container { display: flex; align-items: center; gap: 15px;}
+        .progress-line { flex: 1; height: 8px; background: rgba(0,0,0,0.1); position: relative; border-radius: 10px; overflow: hidden;}
+        body.light-mode .progress-line { background: #e2e8f0; }
+        .progress-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 10px; transition: 1s ease-out;}
+        .progress-pct { font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 1.1rem; min-width: 55px; text-align: right; color: var(--text-main);}
+
+        .btn-restart { display: flex; justify-content: center; align-items: center; width: fit-content; margin: 40px auto 0; padding: 20px 60px; background: var(--color-accent); color: #ffffff; text-decoration: none; font-weight: 800; font-family: 'Space Grotesk', sans-serif; font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase; border-radius: 50px; transition: all 0.3s ease; box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+        .btn-restart:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(2, 132, 199, 0.4); background: #0ea5e9;}
+
+        footer { text-align: center; padding: 30px 20px; font-size: 0.9rem; color: var(--text-muted); background: var(--footer-bg); transition: background 0.5s ease; width: 100%; box-sizing: border-box;}
+        .footer-brand { display: flex; flex-direction: column; align-items: center; gap: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; margin-top: 15px;}
+        .footer-brand img { height: 45px; object-fit: contain;}
+        
+        body.light-mode .logo-dark-theme { display: none; }
+        .logo-light-theme { display: none; }
+        body.light-mode .logo-light-theme { display: block; }
+
+        /* BOTÃO DO INSTAGRAM */
+        .insta-btn {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 8px 20px; background: rgba(255,255,255,0.05); 
+            border: 1px solid var(--glass-border); border-radius: 30px;
+            color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 0.9rem;
+            transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .insta-btn svg { transition: transform 0.3s; }
+        .insta-btn:hover {
+            background: rgba(255,255,255,0.1); transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(225, 48, 108, 0.2); border-color: #E1306C;
+        }
+        .insta-btn:hover svg { transform: scale(1.1); }
+        body.light-mode .insta-btn { background: #ffffff; border-color: #cbd5e1;}
+        body.light-mode .insta-btn:hover { border-color: #E1306C; }
+
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 15px; }
+            .nav-controls { width: 100%; justify-content: space-between;}
+            .report-canvas { padding: 40px 20px; border-radius: 30px;}
+            .big-numbers { gap: 20px; flex-direction: column;}
+            .stat-item { padding: 20px;}
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="/" class="logo"><img src="{{ url_for('static', filename='mundus.png') }}" alt="Mundus Logo"> Mundus</a>
+        <div class="nav-controls">
+            <span class="user-badge">Agente: <strong>{{ nome_jogador }}</strong></span>
+            <button class="theme-toggle" onclick="toggleTheme()" title="Modo Visual">🌓</button>
+            <a href="/logout" class="btn-logout">Sair</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="report-canvas">
+            
+            <div class="hero-stats">
+                <h1>Missão Concluída</h1>
+                <p>Relatório Tático de Exploração</p>
+                
+                <div class="big-numbers">
+                    <div class="stat-item">
+                        <h2>{{ acertos }}<span style="font-size: 2rem; color: var(--text-muted)">/{{ max_rodadas }}</span></h2>
+                        <span>Precisão Territorial</span>
+                    </div>
+                    <div class="stat-item">
+                        <h2>{{ tempo_total }}<span style="font-size: 2rem; color: var(--text-muted)">s</span></h2>
+                        <span>Tempo Total</span>
+                    </div>
+                    {% if acertos > 0 %}
+                    <div class="stat-item">
+                        <h2>{{ tempo_medio }}<span style="font-size: 2rem; color: var(--text-muted)">s</span></h2>
+                        <span>Média por Acerto</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <h3 class="section-title">🏆 Top 10 Exploradores - {{ regiao_jogada }}</h3>
+            <div class="table-responsive">
+                <table>
+                    <tr>
+                        <th>Agente</th>
+                        <th>Precisão</th>
+                        <th>Tempo Total</th>
+                    </tr>
+                    {% for r in ranking %}
+                    <tr>
+                        <td style="font-weight: 700; color: var(--text-main); font-size: 1.1rem;">{{ r[0] }}</td>
+                        <td style="color: var(--color-correct); font-family: 'Space Grotesk', sans-serif; font-size: 1.2rem; font-weight: 800;">{{ r[1] }}</td>
+                        <td style="font-family: 'Space Grotesk', sans-serif; color: var(--text-muted); font-weight: 700;">{{ r[2] }}s</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+
+            <h3 class="section-title">🌍 Desempenho Cartográfico</h3>
+            <div class="table-responsive">
+                <table>
+                    <tr>
+                        <th>Território</th>
+                        <th>Sorteios</th>
+                        <th>Acertos</th>
+                        <th>Taxa de Sucesso</th>
+                        <th>Tempo Médio</th>
+                    </tr>
+                    {% for s in stats_regiao %}
+                    <tr>
+                        <td style="font-weight: 700; color: var(--text-main);">{{ s[0] }}</td>
+                        <td style="color: var(--text-muted); font-family: 'Space Grotesk', sans-serif; font-weight: 600;">{{ s[1] }}</td>
+                        <td style="color: var(--text-muted); font-family: 'Space Grotesk', sans-serif; font-weight: 600;">{{ s[2] }}</td>
+                        <td>
+                            <div class="progress-container">
+                                <div class="progress-line">
+                                    <div class="progress-fill" style="width: {{ s[3] }}%; background: {% if s[3] >= 70 %}var(--color-correct){% elif s[3] >= 40 %}#fbbf24{% else %}var(--color-danger){% endif %};"></div>
+                                </div>
+                                <div class="progress-pct" style="color: {% if s[3] >= 70 %}var(--color-correct){% elif s[3] >= 40 %}#fbbf24{% else %}var(--color-danger){% endif %};">{{ s[3] }}%</div>
+                            </div>
+                        </td>
+                        <td style="font-family: 'Space Grotesk', sans-serif; color: var(--text-muted); font-weight: 700;">{{ s[4] }}s</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+
+            <a href="/" class="btn-restart">Menu Principal</a>
+
+        </div>
+    </main>
+
+    <footer>
+        <div style="margin-bottom: 15px;">
+            <a href="/sobre" style="color: var(--text-muted); text-decoration: none; margin: 0 10px; font-weight: 600;">Sobre Nós</a> | 
+            <a href="/termos" style="color: var(--text-muted); text-decoration: none; margin: 0 10px; font-weight: 600;">Termos e Privacidade</a>
+        </div>
+        <span>&copy; 2026 Mundus. Expandindo os seus horizontes cartográficos.</span>
+        
+        <div style="margin-top: 20px;">
+            <a href="https://www.instagram.com/pin.cdy404?igsh=Z2Z4YmNlc2ZwbWdw" target="_blank" class="insta-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#paint0_radial)"/>
+                    <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#paint1_linear)"/>
+                    <path d="M12 7C9.243 7 7 9.243 7 12C7 14.757 9.243 17 12 17C14.757 17 17 14.757 17 12C17 9.243 14.757 7 12 7ZM12 15C10.346 15 9 13.654 9 12C9 10.346 10.346 9 12 9C13.654 9 15 10.346 15 12C15 13.654 13.654 15 12 15Z" fill="white"/>
+                    <circle cx="16.5" cy="7.5" r="1.5" fill="white"/>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M2 8C2 4.68629 4.68629 2 8 2H16C19.3137 2 22 4.68629 22 8V16C22 19.3137 19.3137 22 16 22H8C4.68629 22 2 19.3137 2 16V8ZM8 4H16C18.2091 4 20 5.79086 20 8V16C20 18.2091 18.2091 20 16 20H8C5.79086 20 4 18.2091 4 16V8C4 5.79086 5.79086 4 8 4Z" fill="white"/>
+                    <defs>
+                        <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(12 23) rotate(-90) scale(21 21)">
+                            <stop stop-color="#fd5"/><stop offset="0.1" stop-color="#fd5"/><stop offset="0.5" stop-color="#ff543e"/><stop offset="1" stop-color="#c837ab"/>
+                        </radialGradient>
+                        <linearGradient id="paint1_linear" x1="4" y1="2" x2="18" y2="20" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#405de6"/><stop offset="0.5" stop-color="#5851db" stop-opacity="0"/><stop offset="1" stop-color="#833ab4" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                @pin.cdy404
+            </a>
+        </div>
+
+        <div class="footer-brand">
+            <span>Desenvolvido por <strong>Cidcleytonn.INC</strong></span>
+            <img src="{{ url_for('static', filename='logoBranca.png') }}" class="logo-dark-theme" alt="Cidcleytonn.INC">
+            <img src="{{ url_for('static', filename='logoPreta.png') }}" class="logo-light-theme" alt="Cidcleytonn.INC">
+        </div>
+    </footer>
+
+    <script>
+        if (localStorage.getItem('geoTheme') === 'light') document.body.classList.add('light-mode');
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('geoTheme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mundus - Expedição em Andamento</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700;800&display=swap');
+
+        :root {
+            --bg-main: #0a1128;
+            --header-bg: rgba(10, 17, 40, 0.95);    
+            --footer-bg: #050a17;
+            --card-bg: #121e42;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --color-correct: #10b981;
+            --color-incorrect: #ef4444;
+            --color-accent: #00BFFF;
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --map-land: rgba(255,255,255,0.05);
+            --map-stroke: rgba(255,255,255,0.15);
+        }
+
+        body.light-mode {
+            --bg-main: #f0fdfa; 
+            --header-bg: #ffffff; 
+            --footer-bg: #e2e8f0;
+            --card-bg: #ffffff;
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --color-accent: #0ea5e9;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --map-land: #e2e8f0;
+            --map-stroke: #ffffff;
+        }
+
+        body { font-family: 'Inter', sans-serif; margin: 0; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-main); color: var(--text-main); transition: background 0.5s ease; }
+
+        header { position: sticky; top: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; background: var(--header-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: 0 4px 20px rgba(0,0,0,0.05); transition: background 0.5s ease; }
+        .logo { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; gap: 12px; color: var(--text-main); text-decoration: none; letter-spacing: -1px;}
+        .logo img { width: 45px; height: 45px; border-radius: 12px; object-fit: cover;}
+        
+        .nav-controls { display: flex; align-items: center; gap: 15px; }
+        .theme-toggle { background: rgba(128,128,128,0.2); border: none; color: var(--text-main); font-size: 1.2rem; cursor: pointer; transition: 0.3s; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center;}
+        .btn-logout { color: #f59e0b; text-decoration: none; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; padding: 10px 20px; border-radius: 20px; background: rgba(245, 158, 11, 0.1); transition: 0.3s; }
+        .btn-logout:hover { background: #f59e0b; color: #fff; }
+
+        main { flex: 1; padding: 30px 5%; display: flex; justify-content: center; align-items: flex-start;}
+
+        .game-wrapper { display: flex; gap: 25px; width: 100%; max-width: 1400px; }
+        
+        .map-container { flex: 2.5; background: var(--card-bg); border-radius: 30px; padding: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.05); border: 1px solid var(--glass-border); display: flex; justify-content: center; align-items: center; min-height: 60vh; transition: 0.3s;}
+        
+        #svg-map { width: 100%; height: 100%; max-height: 75vh; }
+        .land, .country { fill: var(--map-land); stroke: var(--map-stroke); stroke-width: 0.8px; vector-effect: non-scaling-stroke; transition: fill 0.4s ease; } 
+        .map-correct { fill: var(--color-correct) !important; stroke: #fff;}   
+        .map-incorrect { fill: var(--color-incorrect) !important; stroke: #fff;} 
+
+        .hud-container { flex: 1; min-width: 340px; display: flex; flex-direction: column; gap: 25px; }
+        .hud-top { background: var(--card-bg); border-radius: 30px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.05); border: 1px solid var(--glass-border); }
+
+        .hud-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: rgba(0,0,0,0.05); padding: 15px; border-radius: 20px;}
+        body.light-mode .hud-header { background: #f8fafc; }
+        .progress-text { font-size: 0.9rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;}
+        .progress-text span { color: var(--color-accent); font-size: 1.2rem; font-family: 'Space Grotesk', sans-serif;}
+        #cronometro { font-family: 'Space Grotesk', sans-serif; font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; color: var(--text-main); }
+        
+        .bandeira-img { width: 100%; height: 160px; object-fit: contain; background: rgba(0,0,0,0.03); padding: 15px; box-sizing: border-box; border-radius: 20px; border: 2px dashed var(--glass-border); margin-bottom: 20px;}
+        
+        .msg-toast { font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 700; text-align: center; margin-bottom: 20px; min-height: 25px; border-radius: 12px; padding: 5px;}
+
+        .input-resposta { width: 100%; padding: 20px; font-size: 1.2rem; border-radius: 20px; border: 2px solid var(--glass-border); text-align: center; background: rgba(0,0,0,0.05); color: var(--text-main); font-weight: 600; outline: none; box-sizing: border-box; font-family: 'Inter', sans-serif; transition: 0.3s; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);}
+        body.light-mode .input-resposta { background: #ffffff; }
+        .input-resposta:focus { border-color: var(--color-accent); box-shadow: 0 0 0 4px rgba(0, 191, 255, 0.2); }
+
+        .btn-grid { display: flex; gap: 15px; margin-top: 20px;}
+        .btn-hud { flex: 1; padding: 18px; font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-radius: 50px; border: none; cursor: pointer; transition: 0.3s; text-align: center; text-decoration: none; box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        .btn-enviar { background: var(--color-accent); color: #fff; }
+        .btn-enviar:hover { transform: translateY(-3px); box-shadow: 0 12px 20px rgba(0, 191, 255, 0.3); }
+        .btn-enviar:active { transform: scale(0.95); }
+        
+        .btn-desistir { background: transparent; border: 2px solid var(--glass-border); color: var(--text-muted); box-shadow: none;}
+        .btn-desistir:hover { background: var(--color-incorrect); color: white; border-color: var(--color-incorrect); }
+
+        .hud-log-box { background: var(--card-bg); border-radius: 30px; padding: 25px; flex: 1; display: flex; flex-direction: column; min-height: 200px; border: 1px solid var(--glass-border); box-shadow: 0 15px 35px rgba(0,0,0,0.05);}
+        .log-title { font-size: 0.9rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; text-align: center;}
+        .hud-log { margin: 0; padding: 0; list-style: none; overflow-y: auto; flex: 1;}
+        .hud-log li { display: flex; justify-content: space-between; padding: 10px 15px; border-radius: 12px; margin-bottom: 8px; background: rgba(0,0,0,0.03); font-size: 0.95rem; font-weight: 600;}
+        body.light-mode .hud-log li { background: #f8fafc; }
+
+        footer { text-align: center; padding: 30px 20px; font-size: 0.9rem; color: var(--text-muted); background: var(--footer-bg); transition: background 0.5s ease; width: 100%; box-sizing: border-box;}
+        .footer-brand { display: flex; flex-direction: column; align-items: center; gap: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; margin-top: 15px;}
+        .footer-brand img { height: 45px; object-fit: contain;}
+        
+        body.light-mode .logo-dark-theme { display: none; }
+        .logo-light-theme { display: none; }
+        body.light-mode .logo-light-theme { display: block; }
+
+        /* BOTÃO DO INSTAGRAM */
+        .insta-btn {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 8px 20px; background: rgba(255,255,255,0.05); 
+            border: 1px solid var(--glass-border); border-radius: 30px;
+            color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 0.9rem;
+            transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .insta-btn svg { transition: transform 0.3s; }
+        .insta-btn:hover {
+            background: rgba(255,255,255,0.1); transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(225, 48, 108, 0.2); border-color: #E1306C;
+        }
+        .insta-btn:hover svg { transform: scale(1.1); }
+        body.light-mode .insta-btn { background: #ffffff; border-color: #cbd5e1;}
+        body.light-mode .insta-btn:hover { border-color: #E1306C; }
+
+        @media (max-width: 900px) {
+            .game-wrapper { flex-direction: column; }
+            .map-container { min-height: 35vh; padding: 15px; border-radius: 20px;}
+            .hud-top, .hud-log-box { border-radius: 20px; padding: 20px;}
+            #cronometro { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    
+    <header>
+        <a href="/" class="logo"><img src="{{ url_for('static', filename='mundus.png') }}" alt="Mundus Logo"> Mundus</a>
+        <div class="nav-controls">
+            <button class="theme-toggle" onclick="toggleTheme()" title="Modo Visual">🌓</button>
+            <a href="/desistir" class="btn-logout">Abandonar Missão</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="game-wrapper">
+            <div class="map-container">
+                {% if regiao == 'sul' %} {% include 'mapas/sul.html' %}
+                {% elif regiao == 'norte_central' %} {% include 'mapas/norte_central.html' %}
+                {% elif regiao == 'europa' %} {% include 'mapas/europa.html' %}
+                {% elif regiao == 'africa' %} {% include 'mapas/africa.html' %}
+                {% elif regiao == 'asia' %} {% include 'mapas/asia.html' %}
+                {% elif regiao == 'oceania' %} {% include 'mapas/oceania.html' %}
+                {% elif regiao == 'mundo' %} {% include 'mapas/mundo.html' %}
+                {% else %} <p>Sinal perdido.</p> {% endif %}
+            </div>
+
+            <div class="hud-container">
+                <div class="hud-top">
+                    <div class="hud-header">
+                        <div class="progress-text">Alvo <br><span>{{ rodada }} / {{ max_rodadas }}</span></div>
+                        <div id="cronometro">00:00.00</div>
+                    </div>
+
+                    <img src="{{ url_bandeira }}" alt="Bandeira Alvo" class="bandeira-img">
+
+                    <div class="msg-toast" id="alerta-msg" style="color: {% if 'CORRETO' in mensagem %}var(--color-correct){% else %}var(--color-incorrect){% endif %}; background: {% if 'CORRETO' in mensagem %}rgba(16, 185, 129, 0.1){% elif 'INCORRETO' in mensagem %}rgba(239, 68, 68, 0.1){% else %}transparent{% endif %};">
+                        {{ mensagem }}
+                    </div>
+
+                    <form method="POST" id="form-jogo">
+                        <input type="hidden" name="pais_correto" value="{{ nome_pais }}">
+                        <input type="hidden" name="apelidos_corretos" value="{{ apelidos_pais }}">
+                        
+                        <input type="text" id="resposta" name="resposta" placeholder="Escreva o nome do país..." required autocomplete="off" autofocus class="input-resposta">
+                        
+                        <div class="btn-grid">
+                            <a href="/desistir" class="btn-hud btn-desistir">Pular</a>
+                            <button type="submit" class="btn-hud btn-enviar">Confirmar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="hud-log-box">
+                    <div class="log-title">Descobertas Recentes</div>
+                    <ul class="hud-log">
+                        {% for item in historico|reverse %}
+                            <li>
+                                <span style="color: {% if item.acertou %}var(--color-correct){% else %}var(--color-incorrect){% endif %};">
+                                    {% if item.acertou %}●{% else %}○{% endif %} {{ item.pais }}
+                                </span>
+                                <span style="font-family: 'Space Grotesk', sans-serif; color: var(--text-muted);">
+                                    {% if not item.acertou %}Errou{% else %}{{ item.tempo }}s{% endif %}
+                                </span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div style="margin-bottom: 15px;">
+            <a href="/sobre" style="color: var(--text-muted); text-decoration: none; margin: 0 10px; font-weight: 600;">Sobre Nós</a> | 
+            <a href="/termos" style="color: var(--text-muted); text-decoration: none; margin: 0 10px; font-weight: 600;">Termos e Privacidade</a>
+        </div>
+        <span>&copy; 2026 Mundus. Expandindo os seus horizontes cartográficos.</span>
+        
+        <div style="margin-top: 20px;">
+            <a href="https://www.instagram.com/pin.cdy404?igsh=Z2Z4YmNlc2ZwbWdw" target="_blank" class="insta-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#paint0_radial)"/>
+                    <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#paint1_linear)"/>
+                    <path d="M12 7C9.243 7 7 9.243 7 12C7 14.757 9.243 17 12 17C14.757 17 17 14.757 17 12C17 9.243 14.757 7 12 7ZM12 15C10.346 15 9 13.654 9 12C9 10.346 10.346 9 12 9C13.654 9 15 10.346 15 12C15 13.654 13.654 15 12 15Z" fill="white"/>
+                    <circle cx="16.5" cy="7.5" r="1.5" fill="white"/>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M2 8C2 4.68629 4.68629 2 8 2H16C19.3137 2 22 4.68629 22 8V16C22 19.3137 19.3137 22 16 22H8C4.68629 22 2 19.3137 2 16V8ZM8 4H16C18.2091 4 20 5.79086 20 8V16C20 18.2091 18.2091 20 16 20H8C5.79086 20 4 18.2091 4 16V8C4 5.79086 5.79086 4 8 4Z" fill="white"/>
+                    <defs>
+                        <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(12 23) rotate(-90) scale(21 21)">
+                            <stop stop-color="#fd5"/><stop offset="0.1" stop-color="#fd5"/><stop offset="0.5" stop-color="#ff543e"/><stop offset="1" stop-color="#c837ab"/>
+                        </radialGradient>
+                        <linearGradient id="paint1_linear" x1="4" y1="2" x2="18" y2="20" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#405de6"/><stop offset="0.5" stop-color="#5851db" stop-opacity="0"/><stop offset="1" stop-color="#833ab4" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                @pin.cdy404
+            </a>
+        </div>
+
+        <div class="footer-brand">
+            <span>Desenvolvido por <strong>Cidcleytonn.INC</strong></span>
+            <img src="{{ url_for('static', filename='logoBranca.png') }}" class="logo-dark-theme" alt="Cidcleytonn.INC">
+            <img src="{{ url_for('static', filename='logoPreta.png') }}" class="logo-light-theme" alt="Cidcleytonn.INC">
+        </div>
+    </footer>
+
+<script>
+        // OTIMIZAÇÃO: Jogar sem recarregar a página e PINTAR O MAPA!
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.querySelector('form');
+            const inputResposta = document.querySelector('input[name="resposta"]');
+            const inputPaisCorreto = document.querySelector('input[name="pais_correto"]');
+            const inputApelidos = document.querySelector('input[name="apelidos_corretos"]');
+            const imgBandeira = document.querySelector('img[src*="flagcdn.com"]'); 
+            
+            const avisoMsg = document.getElementById('alerta-msg') || document.querySelector('.msg-toast');
+
+            if(form && inputResposta && imgBandeira) {
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault(); 
+                    
+                    const dados = {
+                        resposta: inputResposta.value,
+                        pais_correto: inputPaisCorreto.value,
+                        apelidos_corretos: inputApelidos ? inputApelidos.value : ''
+                    };
+
+                    inputResposta.disabled = true;
+
+                    try {
+                        const requisicao = await fetch('/jogo', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify(dados)
+                        });
+
+                        const res = await requisicao.json();
+
+                        if (res.fim_jogo) {
+                            window.location.href = res.redirect_url;
+                            return;
+                        }
+
+                        // 1. Atualiza a Imagem da Bandeira
+                        imgBandeira.style.opacity = 0.5;
+                        setTimeout(() => {
+                            imgBandeira.src = res.url_bandeira;
+                            imgBandeira.style.opacity = 1;
+                        }, 150);
+                        
+                        // 2. Atualiza os dados ocultos
+                        inputPaisCorreto.value = res.nome_pais;
+                        if(inputApelidos) inputApelidos.value = res.apelidos_pais;
+                        
+                        // 3. Prepara a barra de texto
+                        inputResposta.value = '';
+                        inputResposta.disabled = false;
+                        inputResposta.focus(); 
+
+                        // 4. Feedback visual da mensagem
+                        if(avisoMsg) {
+                            avisoMsg.innerText = res.mensagem;
+                            avisoMsg.style.color = res.acertou ? 'var(--color-correct, #10b981)' : 'var(--color-incorrect, #ef4444)';
+                        }
+                        
+                        inputResposta.style.boxShadow = res.acertou ? '0 0 15px rgba(16, 185, 129, 0.6)' : '0 0 15px rgba(239, 68, 68, 0.6)';
+                        inputResposta.style.borderColor = res.acertou ? '#10b981' : '#ef4444';
+                        setTimeout(() => { 
+                            inputResposta.style.boxShadow = 'none'; 
+                            inputResposta.style.borderColor = ''; 
+                        }, 800);
+
+                        // 5. PINTAR O MAPA EM TEMPO REAL!
+                        // Procura o país no SVG usando o ISO devolvido pelo Python
+                        const paisSvg = document.getElementById(res.iso_anterior) || document.getElementById(res.iso_anterior.toUpperCase());
+                        
+                        if (paisSvg) {
+                            // Se ele acertou, pinta de verde. Se errou, pinta de vermelho.
+                            if (res.acertou) {
+                                paisSvg.classList.add('map-correct');
+                                paisSvg.style.fill = 'var(--color-correct, #10b981)'; // Força a cor diretamente
+                            } else {
+                                paisSvg.classList.add('map-incorrect');
+                                paisSvg.style.fill = 'var(--color-incorrect, #ef4444)'; // Força a cor diretamente
+                            }
+                        }
+
+                    } catch (erro) {
+                        console.error('Erro na requisição AJAX:', erro);
+                        form.submit(); // Se houver um erro de rede, envia do modo tradicional
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

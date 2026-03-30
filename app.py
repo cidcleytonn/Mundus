@@ -1,0 +1,646 @@
+import json
+import os
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
+from flask_socketio import SocketIO, join_room, leave_room, emit
+from flask_session import Session
+import psycopg2
+import time
+import unicodedata
+from werkzeug.security import generate_password_hash, check_password_hash
+import string
+import random
+
+app = Flask(__name__)
+# O servidor da nuvem vai injetar uma chave aqui. Se estiveres no teu PC, usa a string normal.
+app.secret_key = os.environ.get('SECRET_KEY', 'chave_super_secreta_do_geoquiz_cidy')
+
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)
+
+DB_CONFIG = {
+    "host": "localhost",
+    "database": "geogames_db",
+    "user": "postgres",
+    "password": "cidcleytonnvive" 
+}
+
+# SISTEMA DE CONEXÃO HÍBRIDO (Local vs Nuvem)
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+def pegar_conexao():
+    if DATABASE_URL:
+        # Se estiver no servidor online (Render/Railway), usa o link da nuvem
+        return psycopg2.connect(DATABASE_URL)
+    else:
+        # Se estiver no teu PC, usa a configuração local antiga
+        return psycopg2.connect(**DB_CONFIG)
+
+# --- FUNÇÕES DE BASE DE DADOS ---
+
+def pegar_todos_paises_embaralhados(regiao, incluir_territorios):
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    condicao = "" if incluir_territorios else "WHERE soberano = TRUE "
+    if regiao == 'sul': query = f"SELECT nome, codigo_iso, '' as apelidos FROM paises_america_sul {condicao}ORDER BY RANDOM();"
+    elif regiao == 'norte_central': query = f"SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_america_nc {condicao}ORDER BY RANDOM();"
+    elif regiao == 'europa': query = f"SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_europa {condicao}ORDER BY RANDOM();"
+    elif regiao == 'africa': query = f"SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_africa {condicao}ORDER BY RANDOM();"
+    elif regiao == 'asia': query = f"SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_asia {condicao}ORDER BY RANDOM();"
+    elif regiao == 'oceania': query = f"SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_oceania {condicao}ORDER BY RANDOM();"
+    elif regiao == 'mundo':
+        condicao_mundo = "" if incluir_territorios else "WHERE soberano = TRUE"
+        query = f"""
+            SELECT * FROM (
+                SELECT nome, codigo_iso, '' as apelidos FROM paises_america_sul {condicao_mundo}
+                UNION ALL SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_america_nc {condicao_mundo}
+                UNION ALL SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_europa {condicao_mundo}
+                UNION ALL SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_africa {condicao_mundo}
+                UNION ALL SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_asia {condicao_mundo}
+                UNION ALL SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_oceania {condicao_mundo}
+            ) AS mundo_todo ORDER BY RANDOM();
+        """
+    cursor.execute(query)
+    paises = cursor.fetchall()
+    cursor.close()
+    conexao.close()
+    return [{"nome": p[0], "iso": p[1], "apelidos": p[2]} for p in paises]
+
+def pegar_paises_trunfo():
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    query = """
+        SELECT * FROM (
+            SELECT nome, codigo_iso, populacao FROM paises_america_sul WHERE populacao > 0
+            UNION ALL SELECT nome, codigo_iso, populacao FROM paises_america_nc WHERE populacao > 0
+            UNION ALL SELECT nome, codigo_iso, populacao FROM paises_europa WHERE populacao > 0
+            UNION ALL SELECT nome, codigo_iso, populacao FROM paises_africa WHERE populacao > 0
+            UNION ALL SELECT nome, codigo_iso, populacao FROM paises_asia WHERE populacao > 0
+            UNION ALL SELECT nome, codigo_iso, populacao FROM paises_oceania WHERE populacao > 0
+        ) AS mundo_trunfo ORDER BY RANDOM();
+    """
+    cursor.execute(query)
+    paises = cursor.fetchall()
+    cursor.close()
+    conexao.close()
+    return [{"nome": p[0], "iso": p[1], "populacao": p[2]} for p in paises]
+
+def pegar_estados_brasil():
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    cursor.execute("SELECT sigla, nome, imagem_url, cultura FROM estados_brasil ORDER BY RANDOM();")
+    estados = cursor.fetchall()
+    cursor.close()
+    conexao.close()
+    return [{"sigla": e[0], "nome": e[1], "img": f"/static/estados/{e[0]}.jpg", "cultura": e[3]} for e in estados]
+
+def pegar_perguntas_quiz(limite=5):
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    cursor.execute("SELECT id, pergunta, opcao_a, opcao_b, opcao_c, opcao_d, resposta_correta, curiosidade FROM quiz_perguntas ORDER BY RANDOM() LIMIT %s;", (limite,))
+    perguntas = cursor.fetchall()
+    cursor.close()
+    conexao.close()
+    return [{"id": p[0], "pergunta": p[1], "A": p[2], "B": p[3], "C": p[4], "D": p[5], "correta": p[6], "curiosidade": p[7]} for p in perguntas]
+
+def salvar_estatisticas_bd(nome, regiao, acertos, total, tempo_total, historico):
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    cursor.execute("INSERT INTO ranking_partidas (nome_jogador, modo_jogo, acertos, total_paises, tempo_total) VALUES (%s, %s, %s, %s, %s)", (nome, regiao, acertos, total, tempo_total))
+    for item in historico:
+        iso = item['iso']
+        nome_pais = item['pais']
+        acertou = 1 if item['acertou'] else 0
+        tempo = item['tempo'] if item['acertou'] else 0
+        cursor.execute("""
+            INSERT INTO stats_paises (codigo_iso, nome_pais, regiao, vezes_sorteado, vezes_acertado, tempo_total_acertos)
+            VALUES (%s, %s, %s, 1, %s, %s)
+            ON CONFLICT (codigo_iso) DO UPDATE SET
+                vezes_sorteado = stats_paises.vezes_sorteado + 1, vezes_acertado = stats_paises.vezes_acertado + EXCLUDED.vezes_acertado, tempo_total_acertos = stats_paises.tempo_total_acertos + EXCLUDED.tempo_total_acertos;
+        """, (iso, nome_pais, regiao, acertou, tempo))
+    conexao.commit()
+    cursor.close()
+    conexao.close()
+
+def obter_ranking_por_regiao(regiao):
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    cursor.execute("SELECT nome_jogador, acertos, tempo_total FROM ranking_partidas WHERE modo_jogo = %s ORDER BY acertos DESC, tempo_total ASC LIMIT 10;", (regiao,))
+    ranking = cursor.fetchall()
+    cursor.close()
+    conexao.close()
+    return ranking
+
+def obter_estatisticas_regiao(regiao):
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    cursor.execute("SELECT nome_pais, vezes_sorteado, vezes_acertado, ROUND((vezes_acertado::numeric / vezes_sorteado) * 100, 1) as taxa_acerto, CASE WHEN vezes_acertado > 0 THEN ROUND((tempo_total_acertos::numeric / vezes_acertado), 2) ELSE 0 END as tempo_medio FROM stats_paises WHERE regiao = %s AND vezes_sorteado > 0 ORDER BY taxa_acerto DESC, tempo_medio ASC;", (regiao,))
+    stats = cursor.fetchall()
+    cursor.close()
+    conexao.close()
+    return stats
+
+def normalizar_texto(texto):
+    if not texto: return ""
+    texto = texto.strip().lower()
+    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+
+
+# --- MEMÓRIA DO MULTIPLAYER ---
+salas_ativas = {}
+
+def gerar_codigo_sala():
+    while True:
+        codigo = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        if codigo not in salas_ativas:
+            return codigo
+
+@app.route('/criar_sala', methods=['POST'])
+def criar_sala():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    
+    codigo = gerar_codigo_sala()
+    salas_ativas[codigo] = {
+        'anfitriao': session['usuario_logado'],
+        'jogadores': [], 
+        'estado': 'esperando' 
+    }
+    return redirect(url_for('sala_espera', codigo=codigo))
+
+@app.route('/entrar_sala', methods=['POST'])
+def entrar_sala():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    
+    codigo = request.form.get('codigo_sala').upper()
+    if codigo in salas_ativas and salas_ativas[codigo]['estado'] == 'esperando':
+        return redirect(url_for('sala_espera', codigo=codigo))
+    else:
+        return render_template('quiz_lobby.html', erro="Código de sala inválido ou a partida já começou!")
+
+@app.route('/sala/<codigo>')
+def sala_espera(codigo):
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    if codigo not in salas_ativas: return "Esta sala não existe!", 404
+    
+    nome_jogador = session['usuario_logado']
+    sala = salas_ativas[codigo]
+    eh_anfitriao = (sala['anfitriao'] == nome_jogador)
+    
+    return render_template('sala_espera.html', codigo=codigo, nome_jogador=nome_jogador, eh_anfitriao=eh_anfitriao)
+
+
+# --- EVENTOS EM TEMPO REAL (WEBSOCKETS) ---
+
+@socketio.on('conectar_na_sala')
+def on_join(dados):
+    nome = dados['nome']
+    codigo = dados['codigo']
+    
+    if codigo not in salas_ativas:
+        return 
+        
+    join_room(codigo)
+    
+    if nome not in salas_ativas[codigo]['jogadores']:
+        salas_ativas[codigo]['jogadores'].append(nome)
+        
+    emit('atualizar_jogadores', {'jogadores': salas_ativas[codigo]['jogadores']}, to=codigo)
+
+@socketio.on('iniciar_jogo')
+def iniciar_jogo(dados):
+    codigo = dados['codigo']
+    if codigo in salas_ativas and salas_ativas[codigo]['anfitriao'] == dados['nome']:
+        sala = salas_ativas[codigo]
+        sala['estado'] = 'jogando'
+        sala['perguntas'] = pegar_perguntas_quiz(5) 
+        sala['rodada_atual'] = 0
+        sala['pontuacoes'] = {jogador: 0 for jogador in sala['jogadores']} 
+        
+        emit('redirecionar_jogo', {'url': f'/arena/{codigo}'}, to=codigo)
+
+@app.route('/arena/<codigo>')
+def arena_multi(codigo):
+    if 'usuario_logado' not in session or codigo not in salas_ativas:
+        return redirect(url_for('inicio'))
+    
+    eh_anfitriao = (salas_ativas[codigo]['anfitriao'] == session['usuario_logado'])
+    return render_template('quiz_multi.html', codigo=codigo, nome_jogador=session['usuario_logado'], eh_anfitriao=eh_anfitriao)
+
+@socketio.on('entrar_arena')
+def entrar_arena(dados):
+    codigo = dados['codigo']
+    join_room(codigo)
+    if salas_ativas[codigo]['anfitriao'] == dados['nome']:
+        socketio.sleep(1) 
+        enviar_pergunta_multi(codigo)
+
+def enviar_pergunta_multi(codigo):
+    sala = salas_ativas[codigo]
+    if sala['rodada_atual'] < len(sala['perguntas']):
+        pergunta = sala['perguntas'][sala['rodada_atual']]
+        sala['respostas_rodada'] = 0
+        sala['tempo_inicio'] = time.time() 
+        
+        dados_pergunta = {
+            'pergunta': pergunta['pergunta'],
+            'A': pergunta['A'], 'B': pergunta['B'], 'C': pergunta['C'], 'D': pergunta['D'],
+            'rodada': sala['rodada_atual'] + 1,
+            'total': len(sala['perguntas'])
+        }
+        emit('nova_pergunta', dados_pergunta, to=codigo)
+    else:
+        ranking = sorted(sala['pontuacoes'].items(), key=lambda x: x[1], reverse=True)
+        emit('fim_de_jogo', {'ranking': ranking}, to=codigo)
+
+@socketio.on('enviar_resposta')
+def receber_resposta(dados):
+    codigo = dados['codigo']
+    nome = dados['nome']
+    resposta = dados['resposta']
+    sala = salas_ativas.get(codigo)
+    
+    if not sala: return
+
+    pergunta_atual = sala['perguntas'][sala['rodada_atual']]
+    tempo_gasto = time.time() - sala['tempo_inicio']
+    
+    if resposta == pergunta_atual['correta']:
+        pontos = max(0, int(((15 - tempo_gasto) / 15.0) * 1000))
+        sala['pontuacoes'][nome] += pontos
+        
+    sala['respostas_rodada'] += 1
+    
+    if sala['respostas_rodada'] >= len(sala['jogadores']):
+        ranking = sorted(sala['pontuacoes'].items(), key=lambda x: x[1], reverse=True)
+        resultado = {
+            'correta_letra': pergunta_atual['correta'],
+            'correta_texto': pergunta_atual[pergunta_atual['correta']],
+            'curiosidade': pergunta_atual['curiosidade'],
+            'ranking': ranking
+        }
+        emit('resultado_rodada', resultado, to=codigo)
+
+@socketio.on('pedir_proxima')
+def pedir_proxima(dados):
+    codigo = dados['codigo']
+    if codigo in salas_ativas and salas_ativas[codigo]['anfitriao'] == dados['nome']:
+        salas_ativas[codigo]['rodada_atual'] += 1
+        enviar_pergunta_multi(codigo)
+
+# --- ROTAS DE AUTENTICAÇÃO ---
+
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.form.get('username')
+    senha_digitada = request.form.get('password')
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    cursor.execute("SELECT senha_hash FROM usuarios WHERE username = %s", (username,))
+    resultado = cursor.fetchone()
+    cursor.close()
+    conexao.close()
+    if resultado and check_password_hash(resultado[0], senha_digitada):
+        session['usuario_logado'] = username
+        return redirect(url_for('inicio'))
+    else:
+        return render_template('inicio.html', erro="Credenciais incorretas.", nome_jogador=None)
+
+@app.route('/registro', methods=['POST'])
+def registro():
+    username = request.form.get('new_username')
+    senha = request.form.get('new_password')
+    senha_segura = generate_password_hash(senha)
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    try:
+        cursor.execute("INSERT INTO usuarios (username, senha_hash) VALUES (%s, %s)", (username, senha_segura))
+        conexao.commit()
+        session['usuario_logado'] = username
+        return redirect(url_for('inicio'))
+    except psycopg2.errors.UniqueViolation:
+        conexao.rollback()
+        return render_template('inicio.html', erro_registro="Nome já em uso. Escolha outro.", nome_jogador=None)
+    finally:
+        cursor.close()
+        conexao.close()
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('inicio'))
+
+# --- ROTAS DO SISTEMA PRINCIPAL ---
+
+@app.route('/')
+def inicio():
+    nome = session.get('usuario_logado')
+    return render_template('inicio.html', nome_jogador=nome)
+
+@app.route('/iniciar_partida', methods=['POST'])
+def iniciar_partida():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    
+    modo_jogo = request.form.get('modo_jogo')
+    
+    if modo_jogo == 'trunfo':
+        session['paises_trunfo'] = pegar_paises_trunfo()
+        return redirect(url_for('trunfo'))
+        
+    elif modo_jogo == 'brasil_cultural':
+        session['estados_jogo'] = pegar_estados_brasil()
+        session['total_paises'] = len(session['estados_jogo'])
+        session['rodada'] = 1
+        session['acertos'] = 0
+        session['tempos'] = []
+        session['historico'] = [] 
+        session['tempo_inicio_jogo'] = time.time()
+        session['inicio_pergunta'] = time.time()
+        session['nome_regiao'] = 'brasil_cultural'
+        return redirect(url_for('jogo_brasil'))
+
+    regiao = request.form.get('regiao')
+    incluir_territorios = request.form.get('incluir_territorios') == 'sim'
+    session['nome_regiao'] = regiao 
+    session['paises_jogo'] = pegar_todos_paises_embaralhados(regiao, incluir_territorios)
+    session['total_paises'] = len(session['paises_jogo'])
+    session['rodada'] = 1
+    session['acertos'] = 0
+    session['tempos'] = []
+    session['historico'] = [] 
+    session['tempo_inicio_jogo'] = time.time()
+    session['inicio_pergunta'] = time.time()
+    return redirect(url_for('jogo'))
+
+@app.route('/jogo_brasil', methods=['GET', 'POST'])
+def jogo_brasil():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    if 'estados_jogo' not in session: return redirect(url_for('inicio'))
+
+    mensagem = ""
+    indice_atual = session['rodada'] - 1
+    estado_atual = session['estados_jogo'][indice_atual]
+    sigla_atual = estado_atual['sigla']
+
+    if request.method == 'POST':
+        tempo_decorrido = round(time.time() - session.get('inicio_pergunta', time.time()), 2)
+        estado_clicado = request.form.get('estado_clicado') 
+        
+        acertou = (estado_clicado == sigla_atual)
+        
+        if acertou:
+            mensagem = f"CORRETO: {estado_atual['nome']} em {tempo_decorrido}s!"
+            session['acertos'] += 1
+            session['tempos'].append(tempo_decorrido)
+        else:
+            estado_errado_nome = "Nenhum"
+            if estado_clicado:
+                conexao = pegar_conexao()
+                cursor = conexao.cursor()
+                cursor.execute("SELECT nome FROM estados_brasil WHERE sigla = %s", (estado_clicado,))
+                res = cursor.fetchone()
+                if res: estado_errado_nome = res[0]
+                cursor.close()
+                conexao.close()
+                
+            mensagem = f"INCORRETO: Clicaste em {estado_errado_nome}. O correto era {estado_atual['nome']}."
+
+        session['historico'].append({
+            'pais': estado_atual['nome'], 
+            'iso': sigla_atual, 
+            'acertou': acertou, 
+            'chute': estado_clicado, 
+            'tempo': tempo_decorrido
+        })
+        session['rodada'] += 1
+
+        if session['rodada'] > session['total_paises']:
+            session['tempo_total_jogo'] = round(time.time() - session['tempo_inicio_jogo'], 2)
+            salvar_estatisticas_bd(session.get('usuario_logado'), session.get('nome_regiao'), session.get('acertos'), session.get('total_paises'), session['tempo_total_jogo'], session.get('historico'))
+            return redirect(url_for('resultado_brasil'))
+        
+        session['inicio_pergunta'] = time.time()
+        indice_atual = session['rodada'] - 1
+        estado_atual = session['estados_jogo'][indice_atual]
+        sigla_atual = estado_atual['sigla']
+
+    historico_json = json.dumps(session.get('historico', []))
+    return render_template('brasil_game.html', 
+                           estado=estado_atual, 
+                           mensagem=mensagem, 
+                           rodada=session['rodada'], 
+                           max_rodadas=session['total_paises'], 
+                           historico=session.get('historico', []), 
+                           historico_js=historico_json,
+                           tempo_inicio=session['tempo_inicio_jogo'])
+
+@app.route('/quiz_lobby')
+def quiz_lobby():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    return render_template('quiz_lobby.html')
+
+@app.route('/iniciar_partida_solo')
+def iniciar_partida_solo():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    
+    session['quiz_perguntas'] = pegar_perguntas_quiz(5) 
+    session['quiz_rodada'] = 1
+    session['quiz_pontuacao'] = 0
+    return redirect(url_for('jogo_quiz_solo'))
+
+@app.route('/jogo_quiz_solo', methods=['GET', 'POST'])
+def jogo_quiz_solo():
+    if 'usuario_logado' not in session or 'quiz_perguntas' not in session:
+        return redirect(url_for('inicio'))
+
+    indice = session['quiz_rodada'] - 1
+    
+    if indice >= len(session['quiz_perguntas']):
+        return redirect(url_for('inicio')) 
+
+    pergunta_atual = session['quiz_perguntas'][indice]
+
+    if request.method == 'POST':
+        if 'avancar' in request.form:
+            session['quiz_rodada'] += 1
+            return redirect(url_for('jogo_quiz_solo'))
+
+        resposta_dada = request.form.get('resposta')
+        tempo_restante = float(request.form.get('tempo_restante', 0))
+
+        acertou = (resposta_dada == pergunta_atual['correta'])
+        pontos_ganhos = 0
+        
+        if acertou:
+            pontos_ganhos = int((tempo_restante / 15.0) * 1000)
+            session['quiz_pontuacao'] += pontos_ganhos
+
+        feedback = {
+            "acertou": acertou,
+            "pontos": pontos_ganhos,
+            "correta_letra": pergunta_atual['correta'],
+            "correta_texto": pergunta_atual[pergunta_atual['correta']],
+            "curiosidade": pergunta_atual['curiosidade']
+        }
+        
+        return render_template('quiz_solo.html', pergunta=pergunta_atual, rodada=session['quiz_rodada'], total=len(session['quiz_perguntas']), pontuacao=session['quiz_pontuacao'], feedback=feedback)
+
+    return render_template('quiz_solo.html', pergunta=pergunta_atual, rodada=session['quiz_rodada'], total=len(session['quiz_perguntas']), pontuacao=session['quiz_pontuacao'], feedback=None)
+
+@app.route('/resultado_brasil')
+def resultado_brasil():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    acertos = session.get('acertos', 0)
+    tempos = session.get('tempos', [])
+    total_paises = session.get('total_paises', 0)
+    tempo_total = session.get('tempo_total_jogo', 0)
+    historico = session.get('historico', []) 
+    tempo_medio = round(sum(tempos) / len(tempos), 2) if tempos else 0
+    
+    historico_js = json.dumps(historico)
+    
+    ranking_bruto = obter_ranking_por_regiao('brasil_cultural')
+    top_global = [{"nome": r[0], "acertos": r[1], "tempo": r[2]} for r in ranking_bruto]
+    
+    estatisticas_brutas = obter_estatisticas_regiao('brasil_cultural')
+    estatisticas_ordenadas = sorted(estatisticas_brutas, key=lambda x: x[2], reverse=True)
+    ranking_estados = [{"nome": e[0], "acertos": e[2]} for e in estatisticas_ordenadas[:10]]
+    
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    cursor.execute("SELECT sigla, nome, cultura FROM estados_brasil;")
+    dados_estados = {linha[0]: {"nome": linha[1], "cultura": linha[2]} for linha in cursor.fetchall()}
+    cursor.close()
+    conexao.close()
+    
+    estados_js = json.dumps(dados_estados)
+    
+    return render_template('resultado_brasil.html', 
+                           nome_jogador=session.get('usuario_logado'), 
+                           acertos=acertos, 
+                           max_rodadas=total_paises, 
+                           tempo_medio=tempo_medio, 
+                           tempo_total=tempo_total, 
+                           historico=historico, 
+                           historico_js=historico_js,
+                           estados_js=estados_js,
+                           top_global=top_global,
+                           ranking_estados=ranking_estados)
+
+@app.route('/trunfo')
+def trunfo():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    if 'paises_trunfo' not in session or len(session['paises_trunfo']) < 2: return redirect(url_for('inicio'))
+    paises_js = json.dumps(session['paises_trunfo'])
+    return render_template('trunfo.html', nome_jogador=session['usuario_logado'], paises_js=paises_js)
+
+@app.route('/jogo', methods=['GET', 'POST'])
+def jogo():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    if 'paises_jogo' not in session: return redirect(url_for('inicio'))
+    
+    mensagem = ""
+    indice_atual = session['rodada'] - 1
+    
+    if indice_atual >= len(session['paises_jogo']):
+        return redirect(url_for('resultado'))
+        
+    pais_atual = session['paises_jogo'][indice_atual]
+
+    if request.method == 'POST':
+        is_ajax = request.is_json
+        
+        if is_ajax:
+            dados = request.get_json()
+            chute_original = dados.get('resposta', '')
+            nome_original = dados.get('pais_correto', '')
+            apelidos_raw = dados.get('apelidos_corretos', '')
+        else:
+            chute_original = request.form.get('resposta', '')
+            nome_original = request.form.get('pais_correto', '')
+            apelidos_raw = request.form.get('apelidos_corretos', '')
+
+        tempo_decorrido = round(time.time() - session.get('inicio_pergunta', time.time()), 2)
+        resposta_usuario = normalizar_texto(chute_original)
+        resposta_certa = normalizar_texto(nome_original)
+        lista_apelidos = [normalizar_texto(a) for a in apelidos_raw.split(',')] if apelidos_raw else []
+        acertou = (resposta_usuario == resposta_certa) or (resposta_usuario in lista_apelidos)
+        
+        if acertou:
+            mensagem = f"CORRETO: {nome_original} em {tempo_decorrido}s!"
+            session['acertos'] += 1
+            session['tempos'].append(tempo_decorrido)
+        else:
+            mensagem = f"INCORRETO: Era {nome_original}."
+
+        iso_anterior = pais_atual['iso']
+
+        session['historico'].append({'pais': nome_original, 'iso': iso_anterior, 'acertou': acertou, 'chute': chute_original, 'tempo': tempo_decorrido})
+        session['rodada'] += 1
+
+        if session['rodada'] > session['total_paises']:
+            session['tempo_total_jogo'] = round(time.time() - session['tempo_inicio_jogo'], 2)
+            salvar_estatisticas_bd(session.get('usuario_logado'), session.get('nome_regiao'), session.get('acertos'), session.get('total_paises'), session['tempo_total_jogo'], session.get('historico'))
+            
+            if is_ajax:
+                return jsonify({"fim_jogo": True, "redirect_url": url_for('resultado')})
+            return redirect(url_for('resultado'))
+        
+        session['inicio_pergunta'] = time.time()
+        indice_atual = session['rodada'] - 1
+        pais_atual = session['paises_jogo'][indice_atual]
+
+        if is_ajax:
+            return jsonify({
+                "fim_jogo": False,
+                "mensagem": mensagem,
+                "acertou": acertou,
+                "iso_anterior": iso_anterior,
+                "url_bandeira": f"https://flagcdn.com/w320/{pais_atual['iso'].lower()}.png",
+                "nome_pais": pais_atual['nome'],
+                "apelidos_pais": pais_atual['apelidos'],
+                "rodada": session['rodada'],
+                "max_rodadas": session['total_paises'],
+                "acertos": session['acertos']
+            })
+
+    historico_json = json.dumps(session.get('historico', []))
+    return render_template('index.html', url_bandeira=f"https://flagcdn.com/w320/{pais_atual['iso'].lower()}.png", nome_pais=pais_atual['nome'], apelidos_pais=pais_atual['apelidos'], mensagem=mensagem, rodada=session['rodada'], max_rodadas=session['total_paises'], acertos=session['acertos'], tempo_inicio=session['tempo_inicio_jogo'], regiao=session.get('nome_regiao'), historico=session.get('historico', []), historico_js=historico_json)
+
+@app.route('/desistir')
+def desistir():
+    if 'tempo_inicio_jogo' in session:
+        session['tempo_total_jogo'] = round(time.time() - session['tempo_inicio_jogo'], 2)
+        salvar_estatisticas_bd(session.get('usuario_logado'), session.get('nome_regiao'), session.get('acertos'), session.get('total_paises'), session['tempo_total_jogo'], session.get('historico'))
+    
+    if session.get('nome_regiao') == 'brasil_cultural':
+        return redirect(url_for('resultado_brasil'))
+    return redirect(url_for('resultado'))
+
+@app.route('/resultado')
+def resultado():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    acertos = session.get('acertos', 0)
+    tempos = session.get('tempos', [])
+    total_paises = session.get('total_paises', 0)
+    tempo_total = session.get('tempo_total_jogo', 0)
+    historico = session.get('historico', []) 
+    regiao_jogada = session.get('nome_regiao', 'sul')
+    tempo_medio = round(sum(tempos) / len(tempos), 2) if tempos else 0
+    return render_template('resultado.html', nome_jogador=session.get('usuario_logado'), regiao_jogada=regiao_jogada.upper(), acertos=acertos, max_rodadas=total_paises, tempo_medio=tempo_medio, tempo_total=tempo_total, historico=historico, ranking=obter_ranking_por_regiao(regiao_jogada), stats_regiao=obter_estatisticas_regiao(regiao_jogada))
+
+@app.route('/sobre')
+def sobre():
+    return render_template('sobre.html', nome_jogador=session.get('usuario_logado'))
+
+@app.route('/termos')
+def termos():
+    return render_template('termos.html', nome_jogador=session.get('usuario_logado'))
+
+@app.route('/keep-alive')
+def keep_alive():
+    return "Acordado!", 200
+
+if __name__ == '__main__':
+    socketio.run(app, host='0.0.0.0', debug=True)

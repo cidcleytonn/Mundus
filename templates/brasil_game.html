@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mundus - Expedição Brasil</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700;800&display=swap');
+
+        :root {
+            --bg-main: #0a1128;
+            --header-bg: rgba(10, 17, 40, 0.95);    
+            --footer-bg: #050a17;
+            --card-bg: #121e42;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --color-correct: #10b981;
+            --color-incorrect: #ef4444;
+            --color-accent: #10b981; 
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --map-land: rgba(255,255,255,0.05);
+            --map-stroke: rgba(255,255,255,0.2);
+            --map-hover: rgba(16, 185, 129, 0.4);
+        }
+
+        body.light-mode {
+            --bg-main: #f0fdfa; 
+            --header-bg: #ffffff; 
+            --footer-bg: #e2e8f0;
+            --card-bg: #ffffff;
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --color-accent: #059669;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --map-land: #e2e8f0;
+            --map-stroke: #ffffff;
+            --map-hover: rgba(5, 150, 105, 0.3);
+        }
+
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; margin: 0; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-main); color: var(--text-main); transition: background 0.5s ease; overflow-x: hidden; }
+
+
+        body.light-mode .logo-dark-theme { display: none; }
+        .logo-light-theme { display: none; }
+        body.light-mode .logo-light-theme { display: block; opacity: 0.8;}
+
+        header { position: sticky; top: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; background: var(--header-bg); backdrop-filter: blur(20px); box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .logo { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; gap: 12px; color: var(--text-main); text-decoration: none; letter-spacing: -1px;}
+        .logo img { width: 45px; height: 45px; border-radius: 12px; object-fit: cover;}
+        
+        .nav-controls { display: flex; align-items: center; gap: 15px; }
+        .theme-toggle { background: rgba(128,128,128,0.2); border: none; color: var(--text-main); font-size: 1.2rem; cursor: pointer; transition: 0.3s; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center;}
+        .btn-logout { color: #f59e0b; text-decoration: none; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; padding: 10px 20px; border-radius: 20px; background: rgba(245, 158, 11, 0.1); transition: 0.3s; }
+        .btn-logout:hover { background: #f59e0b; color: #fff; }
+
+        main { flex: 1; padding: 30px 5%; display: flex; justify-content: center; align-items: flex-start; width: 100%;}
+
+        /* LAYOUT PC: Lado a Lado (Row) */
+        .game-wrapper { display: flex; flex-direction: row; flex-wrap: wrap; gap: 25px; width: 100%; max-width: 1400px; align-items: stretch; justify-content: center;}
+        
+        .map-section { flex: 1 1 55%; min-width: 300px; display: flex; flex-direction: column; gap: 15px;}
+        .instruction { text-align: center; font-size: 1.05rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; background: var(--card-bg); padding: 15px; border-radius: 20px; border: 1px solid var(--glass-border); margin: 0; box-shadow: 0 5px 15px rgba(0,0,0,0.05);}
+        body.light-mode .instruction { background: #ffffff; }
+        
+        .map-container { background: var(--card-bg); border-radius: 30px; padding: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.05); border: 1px solid var(--glass-border); display: flex; justify-content: center; align-items: center; min-height: 50vh; overflow: hidden; flex: 1;}
+        .map-container svg { width: 100%; height: auto; max-height: 65vh; display: block; margin: auto; }
+        .land, .state, path { fill: var(--map-land); stroke: var(--map-stroke); stroke-width: 1px; vector-effect: non-scaling-stroke; transition: all 0.2s ease; cursor: pointer; } 
+        .land:hover, .state:hover, path:hover { fill: var(--map-hover); filter: brightness(1.2); }
+        .map-correct { fill: var(--color-correct) !important; stroke: #fff; pointer-events: none;}   
+        .map-incorrect { fill: var(--color-incorrect) !important; stroke: #fff; pointer-events: none;} 
+
+        .hud-container { flex: 1 1 40%; min-width: 300px; max-width: 500px; display: flex; flex-direction: column; gap: 20px;}
+        .hud-top { background: var(--card-bg); border-radius: 30px; padding: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.05); border: 1px solid var(--glass-border); display: flex; flex-direction: column; width: 100%;}
+
+        .hud-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: rgba(0,0,0,0.05); padding: 15px 20px; border-radius: 20px;}
+        body.light-mode .hud-header { background: #f8fafc; }
+        .progress-text { font-size: 0.9rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;}
+        .progress-text span { color: var(--color-accent); font-size: 1.4rem; font-family: 'Space Grotesk', sans-serif;}
+        #cronometro { font-family: 'Space Grotesk', sans-serif; font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; color: var(--text-main); }
+        
+        /* IMAGEM SEM ESTICAR (contain) */
+        .culture-img-box { width: 100%; height: 250px; background: rgba(0,0,0,0.3); border-radius: 20px; border: 2px solid var(--glass-border); margin-bottom: 20px; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative;}
+        body.light-mode .culture-img-box { background: rgba(0,0,0,0.05); }
+        .culture-img { width: 100%; height: 100%; object-fit: contain; position: relative; z-index: 2;}
+
+        .culture-text { font-size: 1rem; line-height: 1.6; color: var(--text-main); margin-bottom: 20px; background: rgba(0,0,0,0.1); padding: 20px; border-radius: 20px; font-weight: 500; border-left: 4px solid var(--color-accent); width: 100%;}
+        body.light-mode .culture-text { background: #f8fafc; }
+
+        .msg-toast { font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 700; text-align: center; margin-bottom: 15px; min-height: 25px; border-radius: 12px; padding: 8px;}
+
+        .btn-desistir { width: 100%; padding: 18px; font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-radius: 50px; background: transparent; border: 2px solid var(--glass-border); color: var(--text-muted); cursor: pointer; transition: 0.3s; text-align: center; text-decoration: none; margin-top: auto;}
+        .btn-desistir:hover { background: var(--color-incorrect); color: white; border-color: var(--color-incorrect); }
+
+         /* FOOTER E INSTA */
+        footer { text-align: center; padding: 30px 20px; font-size: 0.9rem; color: var(--text-muted); background: var(--footer-bg); transition: background 0.5s ease; width: 100%; box-sizing: border-box;}
+        .footer-brand { display: flex; flex-direction: column; align-items: center; gap: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; margin-top: 15px;}
+        .footer-brand img { height: 45px; object-fit: contain;}
+        body.light-mode .logo-dark-theme { display: none; }
+        .logo-light-theme { display: none; }
+        body.light-mode .logo-light-theme { display: block; }
+
+        .insta-btn { display: inline-flex; align-items: center; gap: 10px; padding: 8px 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .insta-btn svg { transition: transform 0.3s; }
+        .insta-btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(225, 48, 108, 0.2); border-color: #E1306C; }
+        .insta-btn:hover svg { transform: scale(1.1); }
+        body.light-mode .insta-btn { background: #ffffff; border-color: #cbd5e1;}
+        body.light-mode .insta-btn:hover { border-color: #E1306C; }
+
+        /* LAYOUT MOBILE: Foto em cima (order 1), Mapa em baixo (order 2) */
+        @media (max-width: 900px) {
+            main { padding: 15px; }
+            .game-wrapper { flex-direction: column; align-items: center;} 
+            .hud-container { width: 100%; max-width: 100%; order: 1;} 
+            .map-section { width: 100%; order: 2;} 
+            .map-container { min-height: 40vh; padding: 10px;}
+            .culture-img-box { height: 200px; }
+            .btn-desistir { margin-top: 15px; }
+        }
+        @media (max-width: 480px) {
+            #cronometro { font-size: 1.8rem; }
+            header { flex-direction: column; gap: 15px; padding: 15px; }
+            .nav-controls { width: 100%; justify-content: space-between;}
+            .logo { font-size: 1.5rem; }
+            .logo img { width: 35px; height: 35px; }
+        }
+    </style>
+</head>
+<body>
+    
+    <header>
+        <a href="/" class="logo"><img src="{{ url_for('static', filename='mundus.png') }}" alt="Mundus Logo"> Mundus</a>
+        <div class="nav-controls">
+            <button class="theme-toggle" onclick="toggleTheme()" title="Modo Visual">🌓</button>
+            <a href="/desistir" class="btn-logout">Sair</a>
+        </div>
+    </header>
+
+    <main>
+        <div class="game-wrapper">
+            
+            <div class="map-section">
+                <div class="instruction">👇 Identifique o estado no mapa 👇</div>
+                <div class="map-container" id="map-container">
+                    {% include 'mapas/brasil.html' %}
+                </div>
+            </div>
+
+            <div class="hud-container">
+                <div class="hud-top">
+                    <div class="hud-header">
+                        <div class="progress-text">Destino <br><span>{{ rodada }} / {{ max_rodadas }}</span></div>
+                        <div id="cronometro">00:00.00</div>
+                    </div>
+
+                    <div class="culture-img-box">
+                        <img src="{{ estado.img }}" alt="Cultura Local" class="culture-img">
+                    </div>
+
+                    <div class="culture-text">
+                        "{{ estado.cultura | replace(estado.nome, '██████') }}"
+                    </div>
+
+                    <div class="msg-toast" id="alerta-msg" style="color: {% if 'CORRETO' in mensagem %}var(--color-correct){% else %}var(--color-incorrect){% endif %}; background: {% if 'CORRETO' in mensagem %}rgba(16, 185, 129, 0.1){% elif 'INCORRETO' in mensagem %}rgba(239, 68, 68, 0.1){% else %}transparent{% endif %};">
+                        {{ mensagem }}
+                    </div>
+
+                    <form method="POST" id="form-jogo" style="display: none;">
+                        <input type="hidden" id="estado_clicado" name="estado_clicado" value="">
+                    </form>
+
+                    <a href="/desistir" class="btn-desistir">Não sei, Desistir</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+   <footer>
+        <div style="margin-bottom: 15px;">
+            <a href="/sobre" style="color: var(--text-muted); text-decoration: none; margin: 0 10px; font-weight: 600;">Sobre Nós</a> | 
+            <a href="/termos" style="color: var(--text-muted); text-decoration: none; margin: 0 10px; font-weight: 600;">Termos e Privacidade</a>
+        </div>
+        <span>&copy; 2026 Mundus. Expandindo os seus horizontes cartográficos.</span>
+        
+        <div style="margin-top: 20px;">
+            <a href="https://www.instagram.com/pin.cdy404?igsh=Z2Z4YmNlc2ZwbWdw" target="_blank" class="insta-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#paint0_radial)"/>
+                    <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#paint1_linear)"/>
+                    <path d="M12 7C9.243 7 7 9.243 7 12C7 14.757 9.243 17 12 17C14.757 17 17 14.757 17 12C17 9.243 14.757 7 12 7ZM12 15C10.346 15 9 13.654 9 12C9 10.346 10.346 9 12 9C13.654 9 15 10.346 15 12C15 13.654 13.654 15 12 15Z" fill="white"/>
+                    <circle cx="16.5" cy="7.5" r="1.5" fill="white"/>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M2 8C2 4.68629 4.68629 2 8 2H16C19.3137 2 22 4.68629 22 8V16C22 19.3137 19.3137 22 16 22H8C4.68629 22 2 19.3137 2 16V8ZM8 4H16C18.2091 4 20 5.79086 20 8V16C20 18.2091 18.2091 20 16 20H8C5.79086 20 4 18.2091 4 16V8C4 5.79086 5.79086 4 8 4Z" fill="white"/>
+                    <defs>
+                        <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(12 23) rotate(-90) scale(21 21)">
+                            <stop stop-color="#fd5"/><stop offset="0.1" stop-color="#fd5"/><stop offset="0.5" stop-color="#ff543e"/><stop offset="1" stop-color="#c837ab"/>
+                        </radialGradient>
+                        <linearGradient id="paint1_linear" x1="4" y1="2" x2="18" y2="20" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#405de6"/><stop offset="0.5" stop-color="#5851db" stop-opacity="0"/><stop offset="1" stop-color="#833ab4" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                @pin.cdy404
+            </a>
+        </div>
+
+        <div class="footer-brand">
+            <span>Desenvolvido por <strong>Cidcleytonn.INC</strong></span>
+            <img src="{{ url_for('static', filename='logoBranca.png') }}" class="logo-dark-theme" alt="Cidcleytonn.INC">
+            <img src="{{ url_for('static', filename='logoPreta.png') }}" class="logo-light-theme" alt="Cidcleytonn.INC">
+        </div>
+    </footer>
+
+    <script>
+        if (localStorage.getItem('geoTheme') === 'light') document.body.classList.add('light-mode');
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('geoTheme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const svgs = document.querySelectorAll('#map-container svg');
+            svgs.forEach(svg => {
+                if (!svg.getAttribute('viewBox')) {
+                    svg.setAttribute('viewBox', '270 40 400 450');
+                }
+            });
+        });
+
+        const tempoInicio = {{ tempo_inicio * 1000 }};
+        const relogio = document.getElementById('cronometro');
+        function atualizarCronometro() {
+            const agora = Date.now();
+            const diferenca = new Date(agora - tempoInicio);
+            const m = diferenca.getUTCMinutes().toString().padStart(2, '0');
+            const s = diferenca.getUTCSeconds().toString().padStart(2, '0');
+            const ms = Math.floor(diferenca.getUTCMilliseconds() / 10).toString().padStart(2, '0');
+            if (relogio) relogio.innerText = `${m}:${s}.${ms}`;
+            requestAnimationFrame(atualizarCronometro);
+        }
+        if (relogio) atualizarCronometro();
+
+        const historicoGeral = {{ historico_js | safe }};
+        historicoGeral.forEach(item => {
+            let estadoSvg = document.getElementById(item.iso) || document.getElementById('BR-' + item.iso);
+            if (estadoSvg) {
+                if (item.acertou) estadoSvg.classList.add('map-correct');
+                else estadoSvg.classList.add('map-incorrect');
+            }
+        });
+
+        const formJogo = document.getElementById('form-jogo');
+        const inputEstado = document.getElementById('estado_clicado');
+        
+        const svgPaths = document.querySelectorAll('#map-container svg path');
+        svgPaths.forEach(path => {
+            path.addEventListener('click', function() {
+                let sigla = this.id.replace('BR-', '').replace('br-', '').toUpperCase();
+                if (sigla && sigla.length === 2) {
+                    inputEstado.value = sigla;
+                    this.style.fill = 'var(--color-accent)';
+                    if (formJogo) formJogo.submit(); 
+                }
+            });
+        });
+    </script>
+</body>
+</html>

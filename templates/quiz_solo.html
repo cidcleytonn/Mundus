@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mundus - GeoQuiz Solo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a1128;
+            color: white;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 5%;
+            background: rgba(0,0,0,0.2);
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .status-box { text-align: center; }
+        .status-box span { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;}
+        .status-box h2 { margin: 0; font-size: 1.5rem; color: #10b981; }
+        .score { color: #f59e0b !important; }
+
+        .progress-bar-container { width: 100%; height: 10px; background: rgba(255,255,255,0.1); }
+        .progress-bar { height: 100%; background: #3b82f6; width: 100%; transition: width 0.1s linear, background 0.3s; }
+
+        main { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px 5%; max-width: 1000px; margin: 0 auto; width: 100%; box-sizing: border-box;}
+
+        .pergunta-box {
+            background: #121e42;
+            padding: 40px 30px;
+            border-radius: 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            text-align: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.8rem;
+            margin-bottom: 40px;
+            width: 100%;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+        }
+
+        .opcoes-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .btn-opcao {
+            padding: 30px 20px;
+            border-radius: 15px;
+            border: none;
+            color: white;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s, filter 0.2s;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+        .btn-opcao:hover { filter: brightness(1.2); transform: translateY(-3px); }
+        
+        /* Cores estilo Kahoot */
+        .btn-a { background: #e21b3c; }
+        .btn-b { background: #1368ce; }
+        .btn-c { background: #d89e00; }
+        .btn-d { background: #26890c; }
+        
+        .letra-shape { background: rgba(0,0,0,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; margin-right: 15px; font-size: 1.5rem;}
+
+        /* --- TELA DE FEEDBACK --- */
+        .feedback-container { text-align: center; width: 100%; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        
+        .fb-icon { font-size: 5rem; margin-bottom: 10px; }
+        .fb-title { font-family: 'Space Grotesk', sans-serif; font-size: 3rem; margin: 0; }
+        .fb-pts { font-size: 1.5rem; font-weight: 700; margin: 10px 0 30px 0; padding: 10px 20px; background: rgba(0,0,0,0.2); display: inline-block; border-radius: 30px;}
+        
+        .fb-correct { color: #10b981; }
+        .fb-wrong { color: #ef4444; }
+
+        .curiosidade-box { background: #121e42; padding: 30px; border-radius: 20px; border-left: 5px solid #3b82f6; text-align: left; font-size: 1.1rem; line-height: 1.6; margin-bottom: 40px;}
+        .curiosidade-box strong { color: #3b82f6; display: block; margin-bottom: 10px; font-family: 'Space Grotesk', sans-serif; font-size: 1.3rem;}
+
+        .btn-avancar { width: 100%; padding: 20px; background: #3b82f6; color: white; font-family: 'Space Grotesk', sans-serif; font-size: 1.2rem; font-weight: 800; border: none; border-radius: 50px; cursor: pointer; transition: 0.3s; text-transform: uppercase;}
+        .btn-avancar:hover { background: #2563eb; transform: translateY(-5px); box-shadow: 0 10px 20px rgba(59, 130, 246, 0.4);}
+
+        @media (max-width: 768px) {
+            .opcoes-grid { grid-template-columns: 1fr; }
+            .pergunta-box { font-size: 1.3rem; padding: 30px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="status-box">
+            <span>Rodada</span>
+            <h2>{{ rodada }} / {{ total }}</h2>
+        </div>
+        <div class="status-box">
+            <span>Pontuação</span>
+            <h2 class="score">{{ pontuacao }}</h2>
+        </div>
+    </header>
+
+    {% if not feedback %}
+    <div class="progress-bar-container">
+        <div class="progress-bar" id="barra-tempo"></div>
+    </div>
+    {% endif %}
+
+    <main>
+        {% if not feedback %}
+        <div class="pergunta-box">
+            {{ pergunta.pergunta }}
+        </div>
+
+        <form id="form-resposta" action="/jogo_quiz_solo" method="POST" style="width: 100%;">
+            <input type="hidden" name="resposta" id="input-resposta" value="TIMEOUT">
+            <input type="hidden" name="tempo_restante" id="input-tempo" value="0">
+            
+            <div class="opcoes-grid">
+                <button type="button" class="btn-opcao btn-a" onclick="enviarResposta('A')"><div class="letra-shape">▲</div> {{ pergunta.A }}</button>
+                <button type="button" class="btn-opcao btn-b" onclick="enviarResposta('B')"><div class="letra-shape">♦</div> {{ pergunta.B }}</button>
+                <button type="button" class="btn-opcao btn-c" onclick="enviarResposta('C')"><div class="letra-shape">●</div> {{ pergunta.C }}</button>
+                <button type="button" class="btn-opcao btn-d" onclick="enviarResposta('D')"><div class="letra-shape">■</div> {{ pergunta.D }}</button>
+            </div>
+        </form>
+
+        <script>
+            // Motor do Tempo (15 segundos)
+            const tempoMaximo = 15.0;
+            let tempoAtual = tempoMaximo;
+            const barra = document.getElementById('barra-tempo');
+            const inputTempo = document.getElementById('input-tempo');
+            
+            const timer = setInterval(() => {
+                tempoAtual -= 0.1;
+                const percentagem = (tempoAtual / tempoMaximo) * 100;
+                barra.style.width = percentagem + '%';
+                
+                if(percentagem < 30) barra.style.background = '#ef4444'; // Fica vermelho no fim
+                else if(percentagem < 60) barra.style.background = '#f59e0b'; // Laranja a meio
+                
+                if (tempoAtual <= 0) {
+                    clearInterval(timer);
+                    document.getElementById('form-resposta').submit(); // Envia "TIMEOUT" se acabar
+                }
+            }, 100);
+
+            function enviarResposta(letra) {
+                clearInterval(timer);
+                document.getElementById('input-resposta').value = letra;
+                inputTempo.value = tempoAtual.toFixed(2);
+                document.getElementById('form-resposta').submit();
+            }
+        </script>
+
+        {% else %}
+        <div class="feedback-container">
+            {% if feedback.acertou %}
+                <div class="fb-icon">🎯</div>
+                <h1 class="fb-title fb-correct">Correto!</h1>
+                <div class="fb-pts">+ {{ feedback.pontos }} pts</div>
+            {% else %}
+                <div class="fb-icon">❌</div>
+                <h1 class="fb-title fb-wrong">Incorreto</h1>
+                <div class="fb-pts" style="color:#ef4444;">A resposta era: {{ feedback.correta_texto }}</div>
+            {% endif %}
+
+            <div class="curiosidade-box">
+                <strong>🗺️ Diário do Explorador:</strong>
+                {{ feedback.curiosidade }}
+            </div>
+
+            <form action="/jogo_quiz_solo" method="POST">
+                <input type="hidden" name="avancar" value="sim">
+                <button type="submit" class="btn-avancar">
+                    {% if rodada == total %}Ver Resultados{% else %}Próxima Pergunta ❯{% endif %}
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </main>
+
+</body>
+</html>

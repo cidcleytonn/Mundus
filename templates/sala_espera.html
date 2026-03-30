@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mundus - Sala de Espera</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700;800&display=swap');
+        
+        :root {
+            --bg-main: #0a1128;
+            --header-bg: rgba(10, 17, 40, 0.95);    
+            --footer-bg: #050a17;
+            --card-bg: #121e42;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --color-accent: #10b981; 
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+        }
+
+        body.light-mode {
+            --bg-main: #f0fdfa; 
+            --header-bg: #ffffff; 
+            --footer-bg: #e2e8f0;
+            --card-bg: #ffffff;
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --color-accent: #059669;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        body { font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-main); margin: 0; min-height: 100vh; display: flex; flex-direction: column; transition: 0.5s; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; background: var(--header-bg); border-bottom: 1px solid var(--glass-border);}
+        .logo { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; gap: 12px; color: var(--text-main); text-decoration: none;}
+        .logo img { width: 45px; height: 45px; border-radius: 12px; object-fit: cover;}
+        .theme-toggle { background: rgba(128,128,128,0.2); border: none; color: var(--text-main); font-size: 1.2rem; cursor: pointer; transition: 0.3s; width: 40px; height: 40px; border-radius: 50%;}
+
+        main { flex: 1; display: flex; justify-content: center; align-items: center; padding: 40px 20px; }
+
+        .sala-card { background: var(--card-bg); padding: 40px; border-radius: 30px; border: 1px solid var(--glass-border); box-shadow: 0 15px 35px rgba(0,0,0,0.2); width: 100%; max-width: 600px; text-align: center; }
+        
+        h2 { font-family: 'Space Grotesk', sans-serif; color: var(--color-accent); font-size: 2rem; margin: 0 0 5px 0;}
+        .subtitle { color: var(--text-muted); margin-bottom: 25px;}
+
+        .codigo-box { background: rgba(59, 130, 246, 0.1); border: 2px dashed #3b82f6; color: #3b82f6; padding: 15px 40px; border-radius: 20px; font-size: 3.5rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; letter-spacing: 8px; display: inline-block; margin-bottom: 30px; box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.1);}
+
+        .jogadores-container { background: rgba(0,0,0,0.1); border-radius: 20px; padding: 20px; border: 1px solid var(--glass-border); min-height: 150px; margin-bottom: 30px;}
+        body.light-mode .jogadores-container { background: rgba(0,0,0,0.03); }
+        .jogadores-container h3 { margin: 0 0 15px 0; color: var(--text-muted); font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;}
+
+        #lista-jogadores { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .jogador-badge { background: #3b82f6; color: white; padding: 10px 20px; border-radius: 30px; font-weight: 700; font-size: 1rem; animation: popIn 0.3s ease-out; box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3); font-family: 'Space Grotesk', sans-serif;}
+        @keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+
+        .controles { display: flex; gap: 15px; }
+        .btn { flex: 1; padding: 18px; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; border-radius: 50px; border: none; cursor: pointer; transition: 0.3s; font-family: 'Space Grotesk', sans-serif; text-decoration: none; display: flex; justify-content: center; align-items: center;}
+        .btn-iniciar { background: var(--color-accent); color: white; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);}
+        .btn-iniciar:hover { background: #059669; transform: translateY(-3px); }
+        .btn-sair { background: transparent; color: #ef4444; border: 2px solid rgba(239, 68, 68, 0.3); }
+        .btn-sair:hover { background: rgba(239, 68, 68, 0.1); }
+        .wait-msg { flex: 1; padding: 18px; color: #f59e0b; font-weight: 700; background: rgba(245, 158, 11, 0.1); border-radius: 50px; border: 1px solid rgba(245, 158, 11, 0.3);}
+
+        /* RODAPÉ E INSTA */
+        footer { text-align: center; padding: 30px 20px; font-size: 0.9rem; color: var(--text-muted); background: var(--footer-bg); transition: background 0.5s ease; width: 100%; box-sizing: border-box; border-top: 1px solid var(--glass-border); margin-top: auto;}
+        .footer-brand { display: flex; flex-direction: column; align-items: center; gap: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; margin-top: 20px;}
+        .footer-brand img { height: 45px; object-fit: contain;}
+        body.light-mode .logo-dark-theme { display: none; }
+        .logo-light-theme { display: none; }
+        body.light-mode .logo-light-theme { display: block; }
+
+        .insta-btn { display: inline-flex; align-items: center; gap: 10px; padding: 8px 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; color: var(--text-main); text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .insta-btn svg { transition: transform 0.3s; }
+        .insta-btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(225, 48, 108, 0.2); border-color: #E1306C; }
+        .insta-btn:hover svg { transform: scale(1.1); }
+        body.light-mode .insta-btn { background: #ffffff; border-color: #cbd5e1;}
+        body.light-mode .insta-btn:hover { border-color: #E1306C; }
+
+        @media (max-width: 600px) { .controles { flex-direction: column; } .codigo-box { font-size: 2.5rem; letter-spacing: 4px; padding: 15px 20px;} }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <header>
+        <a href="/" class="logo"><img src="{{ url_for('static', filename='mundus.png') }}" alt="Mundus Logo"> Mundus</a>
+        <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+    </header>
+
+    <main>
+        <div class="sala-card">
+            <h2>Código da Batalha</h2>
+            <div class="subtitle">Passa este código aos outros agentes!</div>
+            
+            <div class="codigo-box">{{ codigo }}</div>
+
+            <div class="jogadores-container">
+                <h3>Agentes na Sala: <span id="contador">0</span></h3>
+                <div id="lista-jogadores"></div>
+            </div>
+
+            <div class="controles">
+                <a href="/" class="btn btn-sair">Sair da Sala</a>
+                
+                {% if eh_anfitriao %}
+                <button class="btn btn-iniciar" id="btn-comecar">Iniciar GeoKahoot!</button>
+                {% else %}
+                <div class="wait-msg">Aguardando Anfitrião...</div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div style="margin-bottom: 15px;">
+            <a href="/sobre" style="color: var(--text-muted); text-decoration: none; margin: 0 10px; font-weight: 600;">Sobre Nós</a> | 
+            <a href="/termos" style="color: var(--text-muted); text-decoration: none; margin: 0 10px; font-weight: 600;">Termos e Privacidade</a>
+        </div>
+        <span>&copy; 2026 Mundus. Expandindo os seus horizontes cartográficos.</span>
+        
+        <div style="margin-top: 20px;">
+            <a href="https://www.instagram.com/pin.cdy404?igsh=Z2Z4YmNlc2ZwbWdw" target="_blank" class="insta-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#paint0_radial)"/>
+                    <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#paint1_linear)"/>
+                    <path d="M12 7C9.243 7 7 9.243 7 12C7 14.757 9.243 17 12 17C14.757 17 17 14.757 17 12C17 9.243 14.757 7 12 7ZM12 15C10.346 15 9 13.654 9 12C9 10.346 10.346 9 12 9C13.654 9 15 10.346 15 12C15 13.654 13.654 15 12 15Z" fill="white"/>
+                    <circle cx="16.5" cy="7.5" r="1.5" fill="white"/>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M2 8C2 4.68629 4.68629 2 8 2H16C19.3137 2 22 4.68629 22 8V16C22 19.3137 19.3137 22 16 22H8C4.68629 22 2 19.3137 2 16V8ZM8 4H16C18.2091 4 20 5.79086 20 8V16C20 18.2091 18.2091 20 16 20H8C5.79086 20 4 18.2091 4 16V8C4 5.79086 5.79086 4 8 4Z" fill="white"/>
+                    <defs>
+                        <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(12 23) rotate(-90) scale(21 21)">
+                            <stop stop-color="#fd5"/><stop offset="0.1" stop-color="#fd5"/><stop offset="0.5" stop-color="#ff543e"/><stop offset="1" stop-color="#c837ab"/>
+                        </radialGradient>
+                        <linearGradient id="paint1_linear" x1="4" y1="2" x2="18" y2="20" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#405de6"/><stop offset="0.5" stop-color="#5851db" stop-opacity="0"/><stop offset="1" stop-color="#833ab4" stop-opacity="0"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                @pin.cdy404
+            </a>
+        </div>
+
+        <div class="footer-brand">
+            <span>Desenvolvido por <strong>Cidcleytonn.INC</strong></span>
+            <img src="{{ url_for('static', filename='logoBranca.png') }}" class="logo-dark-theme" alt="Cidcleytonn.INC">
+            <img src="{{ url_for('static', filename='logoPreta.png') }}" class="logo-light-theme" alt="Cidcleytonn.INC">
+        </div>
+    </footer>
+
+    <script>
+        if (localStorage.getItem('geoTheme') === 'light') document.body.classList.add('light-mode');
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('geoTheme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        }
+
+        const socket = io();
+        const meuNome = "{{ nome_jogador }}";
+        const codigoSala = "{{ codigo }}";
+
+        socket.on('connect', () => {
+            socket.emit('conectar_na_sala', {nome: meuNome, codigo: codigoSala});
+        });
+
+        socket.on('atualizar_jogadores', (dados) => {
+            const lista = document.getElementById('lista-jogadores');
+            document.getElementById('contador').innerText = dados.jogadores.length;
+            lista.innerHTML = ''; 
+            dados.jogadores.forEach(jogador => {
+                const div = document.createElement('div');
+                div.className = 'jogador-badge';
+                div.innerText = jogador;
+                lista.appendChild(div);
+            });
+        });
+
+        const btnComecar = document.getElementById('btn-comecar');
+        if (btnComecar) {
+            btnComecar.addEventListener('click', () => {
+                socket.emit('iniciar_jogo', {codigo: codigoSala, nome: meuNome});
+            });
+        }
+
+        socket.on('redirecionar_jogo', (dados) => {
+            window.location.href = dados.url;
+        });
+    </script>
+</body>
+</html>
