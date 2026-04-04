@@ -225,7 +225,39 @@
         </div>
     </footer>
 
-<script>
+    <script>
+        // MÁQUINA DO TEMPO (CRONÔMETRO)
+        let tempoInicio = Date.now();
+        let cronometroEl = document.getElementById("cronometro");
+        let timerInterval;
+
+        function formatarTempo(ms) {
+            let totalSegundos = Math.floor(ms / 1000);
+            let minutos = Math.floor(totalSegundos / 60);
+            let segundos = totalSegundos % 60;
+            let fracao = Math.floor((ms % 1000) / 10); // Centésimos de segundo
+            
+            // Adiciona um zero à esquerda se for menor que 10
+            minutos = minutos < 10 ? "0" + minutos : minutos;
+            segundos = segundos < 10 ? "0" + segundos : segundos;
+            fracao = fracao < 10 ? "0" + fracao : fracao;
+            
+            return `${minutos}:${segundos}.${fracao}`;
+        }
+
+        function iniciarCronometro() {
+            tempoInicio = Date.now();
+            clearInterval(timerInterval); // Limpa relógio antigo
+            
+            timerInterval = setInterval(function() {
+                let tempoGasto = Date.now() - tempoInicio;
+                cronometroEl.innerText = formatarTempo(tempoGasto);
+            }, 10); // Atualiza a cada 10ms para dar aquele efeito de centésimos de segundo correndo!
+        }
+
+        // Inicia o cronômetro assim que a página abre
+        iniciarCronometro();
+
         // OTIMIZAÇÃO: Jogar sem recarregar a página e PINTAR O MAPA!
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.querySelector('form');
@@ -265,6 +297,9 @@
                             return;
                         }
 
+                        // REINICIA O CRONÔMETRO AQUI, QUANDO A NOVA BANDEIRA CARREGAR!
+                        iniciarCronometro();
+
                         // 1. Atualiza a Imagem da Bandeira
                         imgBandeira.style.opacity = 0.5;
                         setTimeout(() => {
@@ -295,17 +330,15 @@
                         }, 800);
 
                         // 5. PINTAR O MAPA EM TEMPO REAL!
-                        // Procura o país no SVG usando o ISO devolvido pelo Python
                         const paisSvg = document.getElementById(res.iso_anterior) || document.getElementById(res.iso_anterior.toUpperCase());
                         
                         if (paisSvg) {
-                            // Se ele acertou, pinta de verde. Se errou, pinta de vermelho.
                             if (res.acertou) {
                                 paisSvg.classList.add('map-correct');
-                                paisSvg.style.fill = 'var(--color-correct, #10b981)'; // Força a cor diretamente
+                                paisSvg.style.fill = 'var(--color-correct, #10b981)'; 
                             } else {
                                 paisSvg.classList.add('map-incorrect');
-                                paisSvg.style.fill = 'var(--color-incorrect, #ef4444)'; // Força a cor diretamente
+                                paisSvg.style.fill = 'var(--color-incorrect, #ef4444)'; 
                             }
                         }
 
