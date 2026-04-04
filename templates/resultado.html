@@ -57,7 +57,9 @@
         .stat-item h2 { font-family: 'Space Grotesk', sans-serif; margin: 0; font-size: 4rem; font-weight: 800; line-height: 1; color: var(--text-main);}
         .stat-item span { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); display: block; margin-top: 15px; font-weight: 700;}
 
-        .section-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 800; margin: 0 0 25px 0; color: var(--text-main); letter-spacing: -0.5px;}
+        .section-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 800; margin: 0 0 25px 0; color: var(--text-main); letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px;}
+        .live-indicator { display: inline-block; width: 12px; height: 12px; background-color: var(--color-correct); border-radius: 50%; box-shadow: 0 0 10px var(--color-correct); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
 
         .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 50px; background: rgba(0,0,0,0.03); border-radius: 20px; padding: 20px; border: 1px solid var(--glass-border);}
         body.light-mode .table-responsive { background: #f8fafc; }
@@ -147,25 +149,33 @@
                 </div>
             </div>
 
-            <h3 class="section-title">🏆 Top 10 Exploradores - {{ regiao_jogada }}</h3>
+            <h3 class="section-title"><span class="live-indicator"></span> 🌍 Ranking Global Online - Top 10 ({{ regiao_jogada }})</h3>
             <div class="table-responsive">
                 <table>
                     <tr>
+                        <th>Posição</th>
                         <th>Agente</th>
                         <th>Precisão</th>
                         <th>Tempo Total</th>
                     </tr>
-                    {% for r in ranking %}
-                    <tr>
-                        <td style="font-weight: 700; color: var(--text-main); font-size: 1.1rem;">{{ r[0] }}</td>
-                        <td style="color: var(--color-correct); font-family: 'Space Grotesk', sans-serif; font-size: 1.2rem; font-weight: 800;">{{ r[1] }}</td>
-                        <td style="font-family: 'Space Grotesk', sans-serif; color: var(--text-muted); font-weight: 700;">{{ r[2] }}s</td>
-                    </tr>
-                    {% endfor %}
+                    {% if ranking %}
+                        {% for r in ranking %}
+                        <tr>
+                            <td style="color: var(--text-muted); font-weight: 700;">#{{ loop.index }}</td>
+                            <td style="font-weight: 700; color: var(--text-main); font-size: 1.1rem;">{{ r[0] }}</td>
+                            <td style="color: var(--color-correct); font-family: 'Space Grotesk', sans-serif; font-size: 1.2rem; font-weight: 800;">{{ r[1] }}</td>
+                            <td style="font-family: 'Space Grotesk', sans-serif; color: var(--text-muted); font-weight: 700;">{{ r[2] }}s</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 20px;">A base de dados global está aguardando os primeiros exploradores. Seja o primeiro!</td>
+                        </tr>
+                    {% endif %}
                 </table>
             </div>
 
-            <h3 class="section-title">🌍 Desempenho Cartográfico</h3>
+            <h3 class="section-title">📊 Desempenho Cartográfico da Comunidade</h3>
             <div class="table-responsive">
                 <table>
                     <tr>
