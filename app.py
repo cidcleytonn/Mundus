@@ -1,9 +1,10 @@
 import json
 import os
-from flask import Flask, render_template, request, session, redirect, url_for, jsonify
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify, flash
 from flask_socketio import SocketIO, join_room, leave_room, emit
 from flask_session import Session
 import psycopg2
+from psycopg2.extras import RealDictCursor
 import time
 import unicodedata
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -11,7 +12,6 @@ import string
 import random
 
 app = Flask(__name__)
-# O servidor da nuvem vai injetar uma chave aqui. Se estiveres no teu PC, usa a string normal.
 app.secret_key = os.environ.get('SECRET_KEY', 'chave_super_secreta_do_geoquiz_cidy')
 
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -27,15 +27,12 @@ DB_CONFIG = {
     "password": "cidcleytonnvive" 
 }
 
-# SISTEMA DE CONEXÃO HÍBRIDO (Local vs Nuvem)
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def pegar_conexao():
     if DATABASE_URL:
-        # Se estiver no servidor online (Render/Railway), usa o link da nuvem
-        return psycopg2.connect(DATABASE_URL)
+        return psycopg2.connect(DATABASE_URL, sslmode='require')
     else:
-        # Se estiver no teu PC, usa a configuração local antiga
         return psycopg2.connect(**DB_CONFIG)
 
 # --- FUNÇÕES DE BASE DE DADOS ---
@@ -289,20 +286,26 @@ def pedir_proxima(dados):
         salas_ativas[codigo]['rodada_atual'] += 1
         enviar_pergunta_multi(codigo)
 
-# --- ROTAS DE AUTENTICAÇÃO ---
+# --- ROTAS DE AUTENTICAÇÃO ATUALIZADAS ---
 
 @app.route('/login', methods=['POST'])
 def login():
     username = request.form.get('username')
     senha_digitada = request.form.get('password')
     conexao = pegar_conexao()
-    cursor = conexao.cursor()
-    cursor.execute("SELECT senha_hash FROM usuarios WHERE username = %s", (username,))
-    resultado = cursor.fetchone()
+    cursor = conexao.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT * FROM usuarios WHERE username = %s", (username,))
+    usuario = cursor.fetchone()
     cursor.close()
     conexao.close()
-    if resultado and check_password_hash(resultado[0], senha_digitada):
+    
+    if usuario and check_password_hash(usuario['senha_hash'], senha_digitada):
         session['usuario_logado'] = username
+        session['avatar_url'] = usuario.get('avatar_url', 'agente01.svg')
+        session['cor_pele'] = usuario.get('cor_pele', '#F9B17B')
+        session['cor_cabelo'] = usuario.get('cor_cabelo', '#4a2e1b')
+        session['cor_roupa'] = usuario.get('cor_roupa', '#2d3748')
+        session['cor_extra'] = usuario.get('cor_extra', '#00BFFF')
         return redirect(url_for('inicio'))
     else:
         return render_template('inicio.html', erro="Credenciais incorretas.", nome_jogador=None)
@@ -311,13 +314,31 @@ def login():
 def registro():
     username = request.form.get('new_username')
     senha = request.form.get('new_password')
+    
+    # Dados do Avatar vindos do Mundus Lab no modal
+    avatar_url = request.form.get('avatar_url', 'agente01.svg')
+    cor_pele = request.form.get('avatar_pele', '#F9B17B')
+    cor_cabelo = request.form.get('avatar_cabelo', '#4a2e1b')
+    cor_roupa = request.form.get('avatar_roupa', '#2d3748')
+    cor_extra = request.form.get('avatar_extra', '#00BFFF')
+
     senha_segura = generate_password_hash(senha)
     conexao = pegar_conexao()
     cursor = conexao.cursor()
     try:
-        cursor.execute("INSERT INTO usuarios (username, senha_hash) VALUES (%s, %s)", (username, senha_segura))
+        cursor.execute("""
+            INSERT INTO usuarios (username, senha_hash, avatar_url, cor_pele, cor_cabelo, cor_roupa, cor_extra) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (username, senha_segura, avatar_url, cor_pele, cor_cabelo, cor_roupa, cor_extra))
         conexao.commit()
+        
         session['usuario_logado'] = username
+        session['avatar_url'] = avatar_url
+        session['cor_pele'] = cor_pele
+        session['cor_cabelo'] = cor_cabelo
+        session['cor_roupa'] = cor_roupa
+        session['cor_extra'] = cor_extra
+        
         return redirect(url_for('inicio'))
     except psycopg2.errors.UniqueViolation:
         conexao.rollback()
