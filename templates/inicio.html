@@ -213,7 +213,7 @@
     <main>
         <div class="intro-text">
             <h1 class="page-title">Módulos de Exploração</h1>
-            <p class="page-subtitle">O espaço geográfico está em constante movimento. Gira a roleta abaixo, escolhe a tua missão e testa os teus conhecimentos do nosso mundo.</p>
+            <p class="page-subtitle">Assim como o espaço geográfico está em constante movimento, Gire a roleta abaixo, escolhe a missão e teste os seus conhecimentos sobre o mundo.</p>
         </div>
 
         <div class="roleta-container" id="roleta">
@@ -232,7 +232,7 @@
                         <select name="regiao" id="regiao" required>
                             <option value="mundo" selected>Mundo Inteiro</option>
                             <option value="sul">América do Sul</option>
-                            <option value="norte_central">América do N/C</option>
+                            <option value="norte_central">América do Norte & Centrak</option>
                             <option value="europa">Europa</option>
                             <option value="africa">África</option>
                             <option value="asia">Ásia</option>
@@ -240,7 +240,7 @@
                         </select>
                         <div class="checkbox-container">
                             <input type="checkbox" name="incluir_territorios" value="sim" id="territorios">
-                            <label for="territorios">Incluir dependências</label>
+                            <label for="territorios">Incluir paises dependentes</label>
                         </div>
                     </div>
                     <button type="submit" class="btn-play">INICIAR</button>
@@ -297,7 +297,7 @@
                         <img src="{{ url_for('static', filename='grupo.png') }}?v=2" class="illus-grupo" alt="GeoQuiz Arena">
                     </div>
                 </div>
-                <p class="game-desc">Desafia os teus amigos no multiplayer ou treina a solo num quiz em tempo real de pura geografia.</p>
+                <p class="game-desc">Desafia seus amigos no multiplayer ou treine solo em um quiz em tempo real de pura geografia.</p>
                 <div style="display:flex; flex-direction:column; flex:1; justify-content: flex-end;">
                     <div class="btn-split">
                         <a href="/iniciar_partida_solo" class="btn-play btn-solo" onclick="return verificarAcesso(event)">SOLO</a>
@@ -314,7 +314,7 @@
                         <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                     </svg>
                 </div>
-                <p class="game-desc">A equipa da Mundus está a desenvolver novas missões. Aguarde por atualizações!</p>
+                <p class="game-desc">A equipe do Mundus estar desenvolvendo novas missões. Aguarde por atualizações!</p>
                 <div style="display:flex; flex-direction:column; flex:1; justify-content: flex-end;">
                     <button type="button" class="btn-play btn-locked" disabled>BLOQUEADO</button>
                 </div>
@@ -335,13 +335,13 @@
                 {% if erro %}<div class="error-msg">{{ erro }}</div>{% endif %}
                 <input type="text" name="username" class="modal-input" placeholder="Nome de Agente" required autocomplete="off">
                 <input type="password" name="password" class="modal-input" placeholder="Palavra-passe Secreta" required>
-                <button type="submit" class="btn-modal btn-login">Aceder ao Sistema</button>
+                <button type="submit" class="btn-modal btn-login">Iniciar ao Sistema</button>
             </form>
             <form action="/registro" method="POST" class="modal-form" id="form-registro">
                 {% if erro_registro %}<div class="error-msg">{{ erro_registro }}</div>{% endif %}
                 <input type="text" name="new_username" class="modal-input" placeholder="Escolhe um Nome Único" required autocomplete="off">
                 <input type="password" name="new_password" class="modal-input" placeholder="Cria uma Palavra-passe" required>
-                <button type="submit" class="btn-modal btn-register">Começar a Explorar</button>
+                <button type="submit" class="btn-modal btn-register">Comece a Explorar</button>
             </form>
         </div>
     </div>
@@ -351,7 +351,7 @@
             <a href="/sobre" style="color: var(--text-muted); text-decoration: none; margin: 0 10px; font-weight: 600;">Sobre Nós</a> | 
             <a href="/termos" style="color: var(--text-muted); text-decoration: none; margin: 0 10px; font-weight: 600;">Termos e Privacidade</a>
         </div>
-        <span>&copy; 2026 Mundus. Expandindo os seus horizontes cartográficos.</span>
+        <span>&copy; 2026 Mundus. Expandindo os seus horizontes Geograficos.</span>
         
         <div style="margin-top: 20px;">
             <a href="https://www.instagram.com/pin.cdy404?igsh=Z2Z4YmNlc2ZwbWdw" target="_blank" class="insta-btn">
