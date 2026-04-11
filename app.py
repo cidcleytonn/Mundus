@@ -120,7 +120,55 @@ def salvar_estatisticas_bd(nome, regiao, acertos, total, tempo_total, historico)
     conexao.commit()
     cursor.close()
     conexao.close()
+    
+def verificar_e_desbloquear_conquistas(usuario_id):
+    conexao = pegar_conexao()
+    cursor = conexao.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # 1. Pegar estatísticas gerais do usuário para checagem
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_partidas,
+                MAX(acertos) as max_acertos,
+                MIN(tempo_total) as melhor_tempo
+            FROM ranking_partidas 
+            WHERE nome_jogador = (SELECT username FROM usuarios WHERE id = %s)
+        """, (usuario_id,))
+        stats = cursor.fetchone()
 
+        cursor.execute("""
+            SELECT * FROM conquistas 
+            WHERE id NOT IN (SELECT conquista_id FROM conquistas_usuario WHERE usuario_id = %s)
+        """, (usuario_id,))
+        conquistas_pendentes = cursor.fetchall()
+
+        novas_conquistas = []
+
+        for c in conquistas_pendentes:
+            desbloqueou = False
+            
+            if c['requisito_tipo'] == 'partidas' and stats['total_partidas'] >= c['requisito_valor']:
+                desbloqueou = True
+            elif c['requisito_tipo'] == 'precisao' and stats['max_acertos'] >= 10: # Exemplo: assumindo que 10 é o total
+                desbloqueou = True
+          
+            if desbloqueou:
+                cursor.execute(
+                    "INSERT INTO conquistas_usuario (usuario_id, conquista_id) VALUES (%s, %s)",
+                    (usuario_id, c['id'])
+                )
+                novas_conquistas.append(c['nome'])
+
+        conexao.commit()
+        return novas_conquistas
+    except Exception as e:
+        print(f"Erro ao verificar conquistas: {e}")
+        return []
+    finally:
+        cursor.close()
+        conexao.close()
+        
 def obter_ranking_por_regiao(regiao):
     conexao = pegar_conexao()
     cursor = conexao.cursor()
