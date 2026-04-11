@@ -21,7 +21,8 @@
             --modal-bg: #121e42;
             --input-bg: rgba(255, 255, 255, 0.1);
             --color-accent: #00BFFF;
-            /* Variáveis dinâmicas do Avatar */
+            
+            /* Variáveis dinâmicas do Avatar (Fallback) */
             --cor-pele: #F9B17B;
             --cor-cabelo: #4a2e1b;
             --cor-roupa: #2d3748;
@@ -220,6 +221,7 @@
             .page-title { font-size: 2rem; }
             .game-card { width: 290px; height: 480px; padding: 25px 20px;}
             .roleta-container { height: 530px; }
+            .user-badge { display: none; }
         }
     </style>
 </head>
@@ -229,7 +231,10 @@
         <a href="/" class="logo"><img src="{{ url_for('static', filename='mundus.png') }}" alt="Mundus Logo"> Mundus</a>
         <div class="nav-controls">
             {% if nome_jogador %}
-                <span class="user-badge">Bem-vindo, <strong>{{ nome_jogador }}</strong>!</span>
+                <div class="perfil-usuario" style="display: flex; align-items: center; gap: 10px;">
+                    <div id="header-avatar" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--color-accent); background: rgba(0,0,0,0.2); overflow: hidden; display: flex; justify-content: center; align-items: center;"></div>
+                    <span class="user-badge">Bem-vindo, <strong>{{ nome_jogador }}</strong>!</span>
+                </div>
                 <button class="theme-toggle" onclick="toggleTheme()" title="Modo Visual">🌓</button>
                 <a href="/logout" class="btn-logout">Sair</a>
             {% else %}
@@ -509,5 +514,33 @@
         
         atualizarRoleta();
     </script>
+
+    {% if session.get('usuario_logado') %}
+    <script>
+        const root = document.documentElement;
+        root.style.setProperty('--cor-pele', '{{ session.get("cor_pele", "#F9B17B") }}');
+        root.style.setProperty('--cor-cabelo', '{{ session.get("cor_cabelo", "#4a2e1b") }}');
+        root.style.setProperty('--cor-roupa', '{{ session.get("cor_roupa", "#2d3748") }}');
+        root.style.setProperty('--cor-extra', '{{ session.get("cor_extra", "#00BFFF") }}');
+
+        async function carregarAvatarHeader() {
+            try {
+                const avatarUrl = "{{ url_for('static', filename='avatars/' + session.get('avatar_url', 'agente01.svg')) }}";
+                const res = await fetch(avatarUrl);
+                const svgText = await res.text();
+                const container = document.getElementById('header-avatar');
+                if (container) {
+                    container.innerHTML = svgText;
+                    const svgElement = container.querySelector('svg');
+                    if(svgElement) {
+                        svgElement.style.width = '100%';
+                        svgElement.style.height = '100%';
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        carregarAvatarHeader();
+    </script>
+    {% endif %}
 </body>
 </html>
