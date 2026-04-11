@@ -21,10 +21,10 @@ app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
 DB_CONFIG = {
-    "host": "localhost",
-    "database": "geogames_db",
-    "user": "postgres",
-    "password": "cidcleytonnvive" 
+    "host": os.environ.get('DB_HOST', 'localhost'),
+    "database": os.environ.get('DB_NAME', 'geogames_db'),
+    "user": os.environ.get('DB_USER', 'postgres'),
+    "password": os.environ.get('DB_PASSWORD', '')
 }
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -47,7 +47,7 @@ def pegar_todos_paises_embaralhados(regiao, incluir_territorios):
     elif regiao == 'africa': query = f"SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_africa {condicao}ORDER BY RANDOM();"
     elif regiao == 'asia': query = f"SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_asia {condicao}ORDER BY RANDOM();"
     elif regiao == 'oceania': query = f"SELECT nome, codigo_iso, COALESCE(apelidos, '') FROM paises_oceania {condicao}ORDER BY RANDOM();"
-    elif regiao == 'mundo':
+    else:  # 'mundo' ou qualquer valor desconhecido — evita NameError
         condicao_mundo = "" if incluir_territorios else "WHERE soberano = TRUE"
         query = f"""
             SELECT * FROM (
@@ -170,7 +170,7 @@ def criar_sala():
 def entrar_sala():
     if 'usuario_logado' not in session: return redirect(url_for('inicio'))
     
-    codigo = request.form.get('codigo_sala').upper()
+    codigo = (request.form.get('codigo_sala') or '').upper()
     if codigo in salas_ativas and salas_ativas[codigo]['estado'] == 'esperando':
         return redirect(url_for('sala_espera', codigo=codigo))
     else:
@@ -228,6 +228,8 @@ def arena_multi(codigo):
 @socketio.on('entrar_arena')
 def entrar_arena(dados):
     codigo = dados['codigo']
+    if codigo not in salas_ativas:
+        return
     join_room(codigo)
     if salas_ativas[codigo]['anfitriao'] == dados['nome']:
         socketio.sleep(1) 
@@ -265,7 +267,7 @@ def receber_resposta(dados):
     
     if resposta == pergunta_atual['correta']:
         pontos = max(0, int(((15 - tempo_gasto) / 15.0) * 1000))
-        sala['pontuacoes'][nome] += pontos
+        sala['pontuacoes'][nome] = sala['pontuacoes'].get(nome, 0) + pontos
         
     sala['respostas_rodada'] += 1
     
