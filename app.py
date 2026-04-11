@@ -588,6 +588,47 @@ def resultado():
     
     return render_template('resultado.html', nome_jogador=session.get('usuario_logado'), regiao_jogada=regiao_jogada.upper(), acertos=acertos, max_rodadas=total_paises, tempo_medio=tempo_medio, tempo_total=tempo_total, historico=session.get('historico', []), ranking=obter_ranking_por_regiao(regiao_jogada), stats_regiao=obter_estatisticas_regiao(regiao_jogada), novas_conquistas=novas)
 
+# No app.py, adicione esta rota API para a Sidebar
+@app.route('/api/conquistas')
+def api_conquistas():
+    if 'usuario_logado' not in session: return jsonify([])
+    
+    username = session['usuario_logado']
+    conexao = pegar_conexao()
+    cursor = conexao.cursor(cursor_factory=RealDictCursor)
+    
+    cursor.execute("""
+        SELECT c.*, 
+               CASE WHEN cu.id IS NOT NULL THEN TRUE ELSE FALSE END as desbloqueada
+        FROM conquistas c
+        LEFT JOIN conquistas_usuario cu ON c.id = cu.conquista_id AND cu.username = %s
+        ORDER BY desbloqueada DESC, c.id ASC
+    """, (username,))
+    
+    conquistas = cursor.fetchall()
+    cursor.close()
+    conexao.close()
+    return jsonify(conquistas)
+
+# Atualize a rota principal para limpar e mostrar as "surpresas"
+@app.route('/')
+def inicio():
+    nome = session.get('usuario_logado')
+    # Pegamos as conquistas que acabaram de ser guardadas na sessão (vindas da rota /resultado)
+    novas = session.pop('conquistas_pendentes_animacao', None)
+    return render_template('inicio.html', nome_jogador=nome, novas_conquistas=novas)
+
+# Na rota /resultado, guarde as conquistas na sessão para a animação no inicio.html
+@app.route('/resultado')
+def resultado():
+    # ... (sua lógica atual)
+    novas = verificar_conquistas(session['usuario_logado'], dados)
+    if novas:
+        # Guardamos aqui para que a animação só ocorra quando o user voltar ao menu
+        session['conquistas_pendentes_animacao'] = novas 
+    
+    return render_template('resultado.html', ...)
+
 @app.route('/sobre')
 def sobre():
     return render_template('sobre.html', nome_jogador=session.get('usuario_logado'))
