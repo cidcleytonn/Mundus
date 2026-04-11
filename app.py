@@ -37,7 +37,46 @@ def pegar_conexao():
     else:
         return psycopg2.connect(**DB_CONFIG)
 
-# --- FUNÇÕES DE BASE DE DADOS ---
+# --- SISTEMA DE CONQUISTAS ---
+
+def verificar_conquistas(username, dados_partida):
+    conexao = pegar_conexao()
+    cursor = conexao.cursor(cursor_factory=RealDictCursor)
+    novas_conquistas = []
+    
+    try:
+        cursor.execute("SELECT COUNT(*) as total FROM ranking_partidas WHERE nome_jogador = %s", (username,))
+        total_partidas_query = cursor.fetchone()
+        total_partidas = total_partidas_query['total'] if total_partidas_query else 0
+
+        cursor.execute("""
+            SELECT * FROM conquistas 
+            WHERE id NOT IN (SELECT conquista_id FROM conquistas_usuario WHERE username = %s)
+        """, (username,))
+        pendentes = cursor.fetchall()
+
+        for c in pendentes:
+            ganhou = False
+            if c['requisito_tipo'] == 'partidas' and total_partidas >= c['requisito_valor']:
+                ganhou = True
+            elif c['requisito_tipo'] == 'precisao_100' and dados_partida['total'] > 0 and dados_partida['acertos'] == dados_partida['total']:
+                ganhou = True
+            elif c['requisito_tipo'] == 'acertos_brasil' and dados_partida['regiao'] == 'brasil_cultural' and dados_partida['acertos'] >= c['requisito_valor']:
+                ganhou = True
+
+            if ganhou:
+                cursor.execute("INSERT INTO conquistas_usuario (username, conquista_id) VALUES (%s, %s)", (username, c['id']))
+                novas_conquistas.append({'nome': c['nome'], 'icone': c['icone']})
+
+        conexao.commit()
+    except Exception as e:
+        print(f"Erro conquistas: {e}")
+    finally:
+        cursor.close()
+        conexao.close()
+    return novas_conquistas
+
+# --- FUNÇÕES DE BASE DE DADOS (JOGOS) ---
 
 def pegar_todos_paises_embaralhados(regiao, incluir_territorios):
     conexao = pegar_conexao()
@@ -146,44 +185,6 @@ def normalizar_texto(texto):
     texto = texto.strip().lower()
     return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
 
-
-# --- SISTEMA DE CONQUISTAS ---
-
-def verificar_conquistas(username, dados_partida):
-    conexao = pegar_conexao()
-    cursor = conexao.cursor(cursor_factory=RealDictCursor)
-    novas_conquistas = []
-    
-    try:
-        cursor.execute("SELECT COUNT(*) as total FROM ranking_partidas WHERE nome_jogador = %s", (username,))
-        total_partidas = cursor.fetchone()['total']
-
-        cursor.execute("""
-            SELECT * FROM conquistas 
-            WHERE id NOT IN (SELECT conquista_id FROM conquistas_usuario WHERE username = %s)
-        """, (username,))
-        pendentes = cursor.fetchall()
-
-        for c in pendentes:
-            ganhou = False
-            if c['requisito_tipo'] == 'partidas' and total_partidas >= c['requisito_valor']:
-                ganhou = True
-            elif c['requisito_tipo'] == 'precisao_100' and dados_partida['acertos'] == dados_partida['total'] and dados_partida['total'] > 0:
-                ganhou = True
-            elif c['requisito_tipo'] == 'acertos_brasil' and dados_partida['regiao'] == 'brasil_cultural' and dados_partida['acertos'] >= c['requisito_valor']:
-                ganhou = True
-
-            if ganhou:
-                cursor.execute("INSERT INTO conquistas_usuario (username, conquista_id) VALUES (%s, %s)", (username, c['id']))
-                novas_conquistas.append({'nome': c['nome'], 'icone': c['icone']})
-
-        conexao.commit()
-    except Exception as e:
-        print(f"Erro conquistas: {e}")
-    finally:
-        cursor.close()
-        conexao.close()
-    return novas_conquistas
 
 # --- MEMÓRIA DO MULTIPLAYER ---
 salas_ativas = {}
@@ -370,12 +371,36 @@ def logout():
     session.clear()
     return redirect(url_for('inicio'))
 
+# --- API DE CONQUISTAS PARA A SIDEBAR ---
+
+@app.route('/api/conquistas')
+def api_conquistas():
+    if 'usuario_logado' not in session: return jsonify([])
+    
+    username = session['usuario_logado']
+    conexao = pegar_conexao()
+    cursor = conexao.cursor(cursor_factory=RealDictCursor)
+    
+    cursor.execute("""
+        SELECT c.*, 
+               CASE WHEN cu.id IS NOT NULL THEN TRUE ELSE FALSE END as desbloqueada
+        FROM conquistas c
+        LEFT JOIN conquistas_usuario cu ON c.id = cu.conquista_id AND cu.username = %s
+        ORDER BY desbloqueada DESC, c.id ASC
+    """, (username,))
+    
+    conquistas = cursor.fetchall()
+    cursor.close()
+    conexao.close()
+    return jsonify(conquistas)
+
 # --- ROTAS DO SISTEMA PRINCIPAL ---
 
 @app.route('/')
 def inicio():
     nome = session.get('usuario_logado')
-    return render_template('inicio.html', nome_jogador=nome)
+    novas = session.pop('conquistas_pendentes_animacao', None)
+    return render_template('inicio.html', nome_jogador=nome, novas_conquistas=novas)
 
 @app.route('/perfil/<username>')
 def perfil_usuario(username):
@@ -496,30 +521,6 @@ def jogo_quiz_solo():
         return render_template('quiz_solo.html', pergunta=pergunta_atual, rodada=session['quiz_rodada'], total=len(session['quiz_perguntas']), pontuacao=session['quiz_pontuacao'], feedback=feedback)
     return render_template('quiz_solo.html', pergunta=pergunta_atual, rodada=session['quiz_rodada'], total=len(session['quiz_perguntas']), pontuacao=session['quiz_pontuacao'], feedback=None)
 
-@app.route('/resultado_brasil')
-def resultado_brasil():
-    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
-    acertos = session.get('acertos', 0)
-    total_paises = session.get('total_paises', 0)
-    tempo_total = session.get('tempo_total_jogo', 0)
-    tempos = session.get('tempos', [])
-    tempo_medio = round(sum(tempos) / len(tempos), 2) if tempos else 0
-    
-    dados = {'acertos': acertos, 'total': total_paises, 'tempo': tempo_total, 'regiao': 'brasil_cultural'}
-    novas = verificar_conquistas(session['usuario_logado'], dados)
-    
-    ranking_bruto = obter_ranking_por_regiao('brasil_cultural')
-    top_global = [{"nome": r[0], "acertos": r[1], "tempo": r[2]} for r in ranking_bruto]
-    
-    conexao = pegar_conexao()
-    cursor = conexao.cursor()
-    cursor.execute("SELECT sigla, nome, cultura FROM estados_brasil;")
-    dados_estados = {linha[0]: {"nome": linha[1], "cultura": linha[2]} for linha in cursor.fetchall()}
-    cursor.close()
-    conexao.close()
-
-    return render_template('resultado_brasil.html', nome_jogador=session.get('usuario_logado'), acertos=acertos, max_rodadas=total_paises, tempo_medio=tempo_medio, tempo_total=tempo_total, historico_js=json.dumps(session.get('historico', [])), estados_js=json.dumps(dados_estados), top_global=top_global, novas_conquistas=novas)
-
 @app.route('/trunfo')
 def trunfo():
     if 'usuario_logado' not in session: return redirect(url_for('inicio'))
@@ -565,14 +566,6 @@ def jogo():
         if is_ajax: return jsonify({"fim_jogo": False, "mensagem": mensagem, "acertou": acertou, "iso_anterior": iso_anterior, "url_bandeira": f"https://flagcdn.com/w320/{pais_atual['iso'].lower()}.png", "nome_pais": pais_atual['nome'], "apelidos_pais": pais_atual['apelidos'], "rodada": session['rodada'], "max_rodadas": session['total_paises'], "acertos": session['acertos']})
     return render_template('index.html', url_bandeira=f"https://flagcdn.com/w320/{pais_atual['iso'].lower()}.png", nome_pais=pais_atual['nome'], apelidos_pais=pais_atual['apelidos'], mensagem=mensagem, rodada=session['rodada'], max_rodadas=session['total_paises'], acertos=session['acertos'], tempo_inicio=session['tempo_inicio_jogo'], regiao=session.get('nome_regiao'), historico=session.get('historico', []), historico_js=json.dumps(session.get('historico', [])))
 
-@app.route('/desistir')
-def desistir():
-    if 'tempo_inicio_jogo' in session:
-        session['tempo_total_jogo'] = round(time.time() - session['tempo_inicio_jogo'], 2)
-        salvar_estatisticas_bd(session.get('usuario_logado'), session.get('nome_regiao'), session.get('acertos'), session.get('total_paises'), session['tempo_total_jogo'], session.get('historico'))
-    if session.get('nome_regiao') == 'brasil_cultural': return redirect(url_for('resultado_brasil'))
-    return redirect(url_for('resultado'))
-
 @app.route('/resultado')
 def resultado():
     if 'usuario_logado' not in session: return redirect(url_for('inicio'))
@@ -585,49 +578,59 @@ def resultado():
     
     dados = {'acertos': acertos, 'total': total_paises, 'tempo': tempo_total, 'regiao': regiao_jogada}
     novas = verificar_conquistas(session['usuario_logado'], dados)
-    
+    if novas:
+        session['conquistas_pendentes_animacao'] = novas 
+
     return render_template('resultado.html', nome_jogador=session.get('usuario_logado'), regiao_jogada=regiao_jogada.upper(), acertos=acertos, max_rodadas=total_paises, tempo_medio=tempo_medio, tempo_total=tempo_total, historico=session.get('historico', []), ranking=obter_ranking_por_regiao(regiao_jogada), stats_regiao=obter_estatisticas_regiao(regiao_jogada), novas_conquistas=novas)
 
-# No app.py, adicione esta rota API para a Sidebar
-@app.route('/api/conquistas')
-def api_conquistas():
-    if 'usuario_logado' not in session: return jsonify([])
+@app.route('/resultado_brasil')
+def resultado_brasil():
+    if 'usuario_logado' not in session: return redirect(url_for('inicio'))
+    acertos = session.get('acertos', 0)
+    total_paises = session.get('total_paises', 0)
+    tempo_total = session.get('tempo_total_jogo', 0)
+    tempos = session.get('tempos', [])
+    tempo_medio = round(sum(tempos) / len(tempos), 2) if tempos else 0
     
-    username = session['usuario_logado']
-    conexao = pegar_conexao()
-    cursor = conexao.cursor(cursor_factory=RealDictCursor)
-    
-    cursor.execute("""
-        SELECT c.*, 
-               CASE WHEN cu.id IS NOT NULL THEN TRUE ELSE FALSE END as desbloqueada
-        FROM conquistas c
-        LEFT JOIN conquistas_usuario cu ON c.id = cu.conquista_id AND cu.username = %s
-        ORDER BY desbloqueada DESC, c.id ASC
-    """, (username,))
-    
-    conquistas = cursor.fetchall()
-    cursor.close()
-    conexao.close()
-    return jsonify(conquistas)
-
-# Atualize a rota principal para limpar e mostrar as "surpresas"
-@app.route('/')
-def inicio():
-    nome = session.get('usuario_logado')
-    # Pegamos as conquistas que acabaram de ser guardadas na sessão (vindas da rota /resultado)
-    novas = session.pop('conquistas_pendentes_animacao', None)
-    return render_template('inicio.html', nome_jogador=nome, novas_conquistas=novas)
-
-# Na rota /resultado, guarde as conquistas na sessão para a animação no inicio.html
-@app.route('/resultado')
-def resultado():
-    # ... (sua lógica atual)
+    dados = {'acertos': acertos, 'total': total_paises, 'tempo': tempo_total, 'regiao': 'brasil_cultural'}
     novas = verificar_conquistas(session['usuario_logado'], dados)
     if novas:
-        # Guardamos aqui para que a animação só ocorra quando o user voltar ao menu
         session['conquistas_pendentes_animacao'] = novas 
+
+    ranking_bruto = obter_ranking_por_regiao('brasil_cultural')
+    top_global = [{"nome": r[0], "acertos": r[1], "tempo": r[2]} for r in ranking_bruto]
     
-    return render_template('resultado.html', ...)
+    # BLOCO CORRIGIDO: Lógica de ranking dos estados brasileiros
+    estatisticas_brutas = obter_estatisticas_regiao('brasil_cultural')
+    estatisticas_ordenadas = sorted(estatisticas_brutas, key=lambda x: x[2], reverse=True)
+    ranking_estados = [{"nome": e[0], "acertos": e[2]} for e in estatisticas_ordenadas[:10]]
+    
+    conexao = pegar_conexao()
+    cursor = conexao.cursor()
+    cursor.execute("SELECT sigla, nome, cultura FROM estados_brasil;")
+    dados_estados = {linha[0]: {"nome": linha[1], "cultura": linha[2]} for linha in cursor.fetchall()}
+    cursor.close()
+    conexao.close()
+
+    return render_template('resultado_brasil.html', 
+                           nome_jogador=session.get('usuario_logado'), 
+                           acertos=acertos, 
+                           max_rodadas=total_paises, 
+                           tempo_medio=tempo_medio, 
+                           tempo_total=tempo_total, 
+                           historico_js=json.dumps(session.get('historico', [])), 
+                           estados_js=json.dumps(dados_estados), 
+                           top_global=top_global, 
+                           ranking_estados=ranking_estados, 
+                           novas_conquistas=novas)
+
+@app.route('/desistir')
+def desistir():
+    if 'tempo_inicio_jogo' in session:
+        session['tempo_total_jogo'] = round(time.time() - session['tempo_inicio_jogo'], 2)
+        salvar_estatisticas_bd(session.get('usuario_logado'), session.get('nome_regiao'), session.get('acertos'), session.get('total_paises'), session['tempo_total_jogo'], session.get('historico'))
+    if session.get('nome_regiao') == 'brasil_cultural': return redirect(url_for('resultado_brasil'))
+    return redirect(url_for('resultado'))
 
 @app.route('/sobre')
 def sobre():
