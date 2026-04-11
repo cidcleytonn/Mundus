@@ -16,6 +16,12 @@
             --color-accent: #10b981; 
             --text-main: #ffffff;
             --text-muted: #94a3b8;
+
+            /* Variáveis dinâmicas do Avatar (Fallback) */
+            --cor-pele: #F9B17B;
+            --cor-cabelo: #4a2e1b;
+            --cor-roupa: #2d3748;
+            --cor-extra: #00BFFF;
         }
 
         body.light-mode {
@@ -29,37 +35,38 @@
             --text-muted: #64748b;
         }
 
-        body { font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-main); margin: 0; min-height: 100vh; display: flex; flex-direction: column; transition: 0.5s; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-main); margin: 0; min-height: 100vh; display: flex; flex-direction: column; transition: 0.5s;}
         
         header { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; background: var(--header-bg); border-bottom: 1px solid var(--glass-border);}
         .logo { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 800; display: flex; align-items: center; gap: 12px; color: var(--text-main); text-decoration: none;}
         .logo img { width: 45px; height: 45px; border-radius: 12px; object-fit: cover;}
-        .theme-toggle { background: rgba(128,128,128,0.2); border: none; color: var(--text-main); font-size: 1.2rem; cursor: pointer; transition: 0.3s; width: 40px; height: 40px; border-radius: 50%;}
-
-        main { flex: 1; display: flex; justify-content: center; align-items: center; padding: 40px 20px; }
-
-        .sala-card { background: var(--card-bg); padding: 40px; border-radius: 30px; border: 1px solid var(--glass-border); box-shadow: 0 15px 35px rgba(0,0,0,0.2); width: 100%; max-width: 600px; text-align: center; }
         
-        h2 { font-family: 'Space Grotesk', sans-serif; color: var(--color-accent); font-size: 2rem; margin: 0 0 5px 0;}
-        .subtitle { color: var(--text-muted); margin-bottom: 25px;}
+        .perfil-usuario { display: flex; align-items: center; gap: 12px; }
+        #header-avatar { width: 42px; height: 42px; border-radius: 50%; border: 2px solid var(--color-accent); background: rgba(0,0,0,0.2); overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        
+        .nav-controls { display: flex; align-items: center; gap: 15px; }
+        .theme-toggle { background: rgba(128,128,128,0.2); border: none; color: var(--text-main); font-size: 1.2rem; cursor: pointer; transition: 0.3s; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center;}
+        .btn-logout { color: #ef4444; text-decoration: none; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; padding: 10px 20px; border-radius: 20px; background: rgba(239, 68, 68, 0.1); transition: 0.3s;}
 
-        .codigo-box { background: rgba(59, 130, 246, 0.1); border: 2px dashed #3b82f6; color: #3b82f6; padding: 15px 40px; border-radius: 20px; font-size: 3.5rem; font-family: 'Space Grotesk', sans-serif; font-weight: 800; letter-spacing: 8px; display: inline-block; margin-bottom: 30px; box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.1);}
+        main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }
 
-        .jogadores-container { background: rgba(0,0,0,0.1); border-radius: 20px; padding: 20px; border: 1px solid var(--glass-border); min-height: 150px; margin-bottom: 30px;}
-        body.light-mode .jogadores-container { background: rgba(0,0,0,0.03); }
-        .jogadores-container h3 { margin: 0 0 15px 0; color: var(--text-muted); font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;}
+        .sala-card { background: var(--card-bg); padding: 40px; border-radius: 35px; border: 1px solid var(--glass-border); box-shadow: 0 15px 35px rgba(0,0,0,0.2); width: 100%; max-width: 500px; text-align: center; }
+        
+        .codigo-box { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 20px; margin-bottom: 30px; border: 2px dashed var(--color-accent);}
+        .codigo-box span { display: block; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; letter-spacing: 2px; margin-bottom: 5px;}
+        .codigo-box strong { font-family: 'Space Grotesk', sans-serif; font-size: 3rem; color: var(--text-main); letter-spacing: 8px;}
 
-        #lista-jogadores { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-        .jogador-badge { background: #3b82f6; color: white; padding: 10px 20px; border-radius: 30px; font-weight: 700; font-size: 1rem; animation: popIn 0.3s ease-out; box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3); font-family: 'Space Grotesk', sans-serif;}
-        @keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+        .lista-jogadores { background: rgba(0,0,0,0.1); border-radius: 20px; padding: 25px; margin-bottom: 30px; min-height: 150px; text-align: left;}
+        .lista-jogadores h3 { margin: 0 0 15px 0; font-family: 'Space Grotesk', sans-serif; font-size: 1.1rem; color: var(--text-muted); text-transform: uppercase; display: flex; justify-content: space-between;}
+        .lista-jogadores h3 span { color: var(--color-accent); }
+        
+        #lista-jogadores { display: flex; flex-wrap: wrap; gap: 10px; }
+        .jogador-badge { background: var(--card-bg); border: 1px solid var(--glass-border); padding: 10px 20px; border-radius: 15px; font-weight: 700; color: var(--text-main); box-shadow: 0 4px 10px rgba(0,0,0,0.1); animation: pop 0.3s ease-out;}
+        @keyframes pop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        .controles { display: flex; gap: 15px; }
-        .btn { flex: 1; padding: 18px; font-size: 1.1rem; font-weight: 800; text-transform: uppercase; border-radius: 50px; border: none; cursor: pointer; transition: 0.3s; font-family: 'Space Grotesk', sans-serif; text-decoration: none; display: flex; justify-content: center; align-items: center;}
-        .btn-iniciar { background: var(--color-accent); color: white; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);}
-        .btn-iniciar:hover { background: #059669; transform: translateY(-3px); }
-        .btn-sair { background: transparent; color: #ef4444; border: 2px solid rgba(239, 68, 68, 0.3); }
-        .btn-sair:hover { background: rgba(239, 68, 68, 0.1); }
-        .wait-msg { flex: 1; padding: 18px; color: #f59e0b; font-weight: 700; background: rgba(245, 158, 11, 0.1); border-radius: 50px; border: 1px solid rgba(245, 158, 11, 0.3);}
+        .btn-comecar { width: 100%; padding: 20px; background: var(--color-accent); color: white; font-family: 'Space Grotesk', sans-serif; font-size: 1.2rem; font-weight: 800; border: none; border-radius: 50px; cursor: pointer; transition: 0.3s; text-transform: uppercase; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);}
+        .btn-comecar:hover { background: #059669; transform: translateY(-5px); }
+        .btn-comecar:disabled { background: #64748b; cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.6;}
 
         /* RODAPÉ E INSTA */
         footer { text-align: center; padding: 30px 20px; font-size: 0.9rem; color: var(--text-muted); background: var(--footer-bg); transition: background 0.5s ease; width: 100%; box-sizing: border-box; border-top: 1px solid var(--glass-border); margin-top: auto;}
@@ -76,37 +83,49 @@
         body.light-mode .insta-btn { background: #ffffff; border-color: #cbd5e1;}
         body.light-mode .insta-btn:hover { border-color: #E1306C; }
 
-        @media (max-width: 600px) { .controles { flex-direction: column; } .codigo-box { font-size: 2.5rem; letter-spacing: 4px; padding: 15px 20px;} }
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 15px; }
+            .nav-controls { width: 100%; justify-content: space-between;}
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 </head>
 <body>
     <header>
         <a href="/" class="logo"><img src="{{ url_for('static', filename='mundus.png') }}" alt="Mundus Logo"> Mundus</a>
-        <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+        <div class="nav-controls">
+            {% if session.get('usuario_logado') %}
+            <div class="perfil-usuario">
+                <div id="header-avatar"></div>
+                <span style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">{{ nome_jogador }}</span>
+            </div>
+            {% endif %}
+            <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+            <a href="/" class="btn-logout">Sair</a>
+        </div>
     </header>
 
     <main>
         <div class="sala-card">
-            <h2>Código da Batalha</h2>
-            <div class="subtitle">Passa este código aos outros agentes!</div>
-            
-            <div class="codigo-box">{{ codigo }}</div>
-
-            <div class="jogadores-container">
-                <h3>Agentes na Sala: <span id="contador">0</span></h3>
-                <div id="lista-jogadores"></div>
+            <div class="codigo-box">
+                <span>Código da Operação</span>
+                <strong>{{ codigo }}</strong>
             </div>
 
-            <div class="controles">
-                <a href="/" class="btn btn-sair">Sair da Sala</a>
-                
-                {% if eh_anfitriao %}
-                <button class="btn btn-iniciar" id="btn-comecar">Iniciar GeoKahoot!</button>
-                {% else %}
-                <div class="wait-msg">Aguardando Anfitrião...</div>
-                {% endif %}
+            <div class="lista-jogadores">
+                <h3>Agentes Conectados <span id="contador">0</span></h3>
+                <div id="lista-jogadores">
+                    </div>
             </div>
+
+            {% if eh_anfitriao %}
+            <button id="btn-comecar" class="btn-comecar">🚀 Iniciar Missão</button>
+            <p style="margin-top: 15px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Só tu podes dar início à missão.</p>
+            {% else %}
+            <div style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 15px; border-radius: 15px; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.2);">
+                📡 Aguardando autorização do anfitrião...
+            </div>
+            {% endif %}
         </div>
     </main>
 
@@ -170,6 +189,10 @@
                 div.innerText = jogador;
                 lista.appendChild(div);
             });
+            
+            // Ativa o botão de começar apenas se houver pelo menos 2 jogadores (opcional)
+            const btn = document.getElementById('btn-comecar');
+            if(btn) btn.disabled = (dados.jogadores.length < 1);
         });
 
         const btnComecar = document.getElementById('btn-comecar');
@@ -183,5 +206,33 @@
             window.location.href = dados.url;
         });
     </script>
+    
+    {% if session.get('usuario_logado') %}
+    <script>
+        const root = document.documentElement;
+        root.style.setProperty('--cor-pele', '{{ session.get("cor_pele", "#F9B17B") }}');
+        root.style.setProperty('--cor-cabelo', '{{ session.get("cor_cabelo", "#4a2e1b") }}');
+        root.style.setProperty('--cor-roupa', '{{ session.get("cor_roupa", "#2d3748") }}');
+        root.style.setProperty('--cor-extra', '{{ session.get("cor_extra", "#00BFFF") }}');
+
+        async function carregarAvatarHeader() {
+            try {
+                const avatarUrl = "{{ url_for('static', filename='avatars/' + session.get('avatar_url', 'agente01.svg')) }}";
+                const res = await fetch(avatarUrl);
+                const svgText = await res.text();
+                const container = document.getElementById('header-avatar');
+                if (container) {
+                    container.innerHTML = svgText;
+                    const svgElement = container.querySelector('svg');
+                    if(svgElement) {
+                        svgElement.style.width = '100%';
+                        svgElement.style.height = '100%';
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        carregarAvatarHeader();
+    </script>
+    {% endif %}
 </body>
 </html>
