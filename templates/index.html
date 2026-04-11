@@ -20,6 +20,12 @@
             --text-muted: #94a3b8;
             --map-land: rgba(255,255,255,0.05);
             --map-stroke: rgba(255,255,255,0.15);
+            
+            /* Variáveis dinâmicas do Avatar (Fallback) */
+            --cor-pele: #F9B17B;
+            --cor-cabelo: #4a2e1b;
+            --cor-roupa: #2d3748;
+            --cor-extra: #00BFFF;
         }
 
         body.light-mode {
@@ -97,7 +103,6 @@
         .logo-light-theme { display: none; }
         body.light-mode .logo-light-theme { display: block; }
 
-        /* BOTÃO DO INSTAGRAM */
         .insta-btn {
             display: inline-flex; align-items: center; gap: 10px;
             padding: 8px 20px; background: rgba(255,255,255,0.05); 
@@ -127,6 +132,12 @@
     <header>
         <a href="/" class="logo"><img src="{{ url_for('static', filename='mundus.png') }}" alt="Mundus Logo"> Mundus</a>
         <div class="nav-controls">
+            {% if session.get('usuario_logado') %}
+            <div class="perfil-usuario" style="display: flex; align-items: center; gap: 10px; margin-right: 10px;">
+                <div id="header-avatar" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--color-accent); background: rgba(0,0,0,0.2); overflow: hidden; display: flex; justify-content: center; align-items: center;"></div>
+                <span class="user-badge" style="font-size: 0.95rem; font-weight: 600; color: var(--text-muted); display: none;"><strong>{{ session.get('usuario_logado') }}</strong></span>
+            </div>
+            {% endif %}
             <button class="theme-toggle" onclick="toggleTheme()" title="Modo Visual">🌓</button>
             <a href="/desistir" class="btn-logout">Abandonar Missão</a>
         </div>
@@ -226,37 +237,26 @@
     </footer>
 
     <script>
-        // MÁQUINA DO TEMPO (CRONÔMETRO)
-        let tempoInicio = Date.now();
-        let cronometroEl = document.getElementById("cronometro");
-        let timerInterval;
-
-        function formatarTempo(ms) {
-            let totalSegundos = Math.floor(ms / 1000);
-            let minutos = Math.floor(totalSegundos / 60);
-            let segundos = totalSegundos % 60;
-            let fracao = Math.floor((ms % 1000) / 10); // Centésimos de segundo
-            
-            // Adiciona um zero à esquerda se for menor que 10
-            minutos = minutos < 10 ? "0" + minutos : minutos;
-            segundos = segundos < 10 ? "0" + segundos : segundos;
-            fracao = fracao < 10 ? "0" + fracao : fracao;
-            
-            return `${minutos}:${segundos}.${fracao}`;
+        // Tema
+        if (localStorage.getItem('geoTheme') === 'light') document.body.classList.add('light-mode');
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('geoTheme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
         }
 
-        function iniciarCronometro() {
-            tempoInicio = Date.now();
-            clearInterval(timerInterval); // Limpa relógio antigo
-            
-            timerInterval = setInterval(function() {
-                let tempoGasto = Date.now() - tempoInicio;
-                cronometroEl.innerText = formatarTempo(tempoGasto);
-            }, 10); // Atualiza a cada 10ms para dar aquele efeito de centésimos de segundo correndo!
+        // CRONÔMETRO VOLTOU!
+        const tempoInicio = {{ tempo_inicio * 1000 }};
+        const relogio = document.getElementById('cronometro');
+        function atualizarCronometro() {
+            const agora = Date.now();
+            const diferenca = new Date(agora - tempoInicio);
+            const m = diferenca.getUTCMinutes().toString().padStart(2, '0');
+            const s = diferenca.getUTCSeconds().toString().padStart(2, '0');
+            const ms = Math.floor(diferenca.getUTCMilliseconds() / 10).toString().padStart(2, '0');
+            if (relogio) relogio.innerText = `${m}:${s}.${ms}`;
+            requestAnimationFrame(atualizarCronometro);
         }
-
-        // Inicia o cronômetro assim que a página abre
-        iniciarCronometro();
+        if (relogio) atualizarCronometro();
 
         // OTIMIZAÇÃO: Jogar sem recarregar a página e PINTAR O MAPA!
         document.addEventListener('DOMContentLoaded', () => {
@@ -296,9 +296,6 @@
                             window.location.href = res.redirect_url;
                             return;
                         }
-
-                        // REINICIA O CRONÔMETRO AQUI, QUANDO A NOVA BANDEIRA CARREGAR!
-                        iniciarCronometro();
 
                         // 1. Atualiza a Imagem da Bandeira
                         imgBandeira.style.opacity = 0.5;
@@ -344,11 +341,39 @@
 
                     } catch (erro) {
                         console.error('Erro na requisição AJAX:', erro);
-                        form.submit(); // Se houver um erro de rede, envia do modo tradicional
+                        form.submit(); 
                     }
                 });
             }
         });
     </script>
+    
+    {% if session.get('usuario_logado') %}
+    <script>
+        const root = document.documentElement;
+        root.style.setProperty('--cor-pele', '{{ session.get("cor_pele", "#F9B17B") }}');
+        root.style.setProperty('--cor-cabelo', '{{ session.get("cor_cabelo", "#4a2e1b") }}');
+        root.style.setProperty('--cor-roupa', '{{ session.get("cor_roupa", "#2d3748") }}');
+        root.style.setProperty('--cor-extra', '{{ session.get("cor_extra", "#00BFFF") }}');
+
+        async function carregarAvatarHeader() {
+            try {
+                const avatarUrl = "{{ url_for('static', filename='avatars/' + session.get('avatar_url', 'agente01.svg')) }}";
+                const res = await fetch(avatarUrl);
+                const svgText = await res.text();
+                const container = document.getElementById('header-avatar');
+                if (container) {
+                    container.innerHTML = svgText;
+                    const svgElement = container.querySelector('svg');
+                    if(svgElement) {
+                        svgElement.style.width = '100%';
+                        svgElement.style.height = '100%';
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        carregarAvatarHeader();
+    </script>
+    {% endif %}
 </body>
 </html>
