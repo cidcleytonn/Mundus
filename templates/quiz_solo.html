@@ -7,6 +7,14 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=Inter:wght@400;600;700&display=swap');
         
+        :root {
+            /* Variáveis dinâmicas do Avatar (Fallback) */
+            --cor-pele: #F9B17B;
+            --cor-cabelo: #4a2e1b;
+            --cor-roupa: #2d3748;
+            --cor-extra: #00BFFF;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             background: #0a1128;
@@ -24,6 +32,41 @@
             padding: 20px 5%;
             background: rgba(0,0,0,0.2);
             font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .perfil-usuario {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        #header-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid #00BFFF;
+            background: rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .user-badge {
+            font-size: 1.1rem;
+            color: #cbd5e1;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+        }
+        
+        .user-badge strong {
+            color: #00BFFF;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .stats-wrapper {
+            display: flex;
+            gap: 30px;
         }
 
         .status-box { text-align: center; }
@@ -98,6 +141,9 @@
         .btn-avancar:hover { background: #2563eb; transform: translateY(-5px); box-shadow: 0 10px 20px rgba(59, 130, 246, 0.4);}
 
         @media (max-width: 768px) {
+            header { flex-direction: column; gap: 15px; }
+            .stats-wrapper { width: 100%; justify-content: space-around; }
+            .user-badge { display: none; }
             .opcoes-grid { grid-template-columns: 1fr; }
             .pergunta-box { font-size: 1.3rem; padding: 30px 20px; }
         }
@@ -106,13 +152,22 @@
 <body>
 
     <header>
-        <div class="status-box">
-            <span>Rodada</span>
-            <h2>{{ rodada }} / {{ total }}</h2>
+        <div class="perfil-usuario">
+            <div id="header-avatar"></div>
+            {% if session.get('usuario_logado') %}
+                <span class="user-badge">Agente: <strong>{{ session.get('usuario_logado') }}</strong></span>
+            {% endif %}
         </div>
-        <div class="status-box">
-            <span>Pontuação</span>
-            <h2 class="score">{{ pontuacao }}</h2>
+
+        <div class="stats-wrapper">
+            <div class="status-box">
+                <span>Rodada</span>
+                <h2>{{ rodada }} / {{ total }}</h2>
+            </div>
+            <div class="status-box">
+                <span>Pontuação</span>
+                <h2 class="score">{{ pontuacao }}</h2>
+            </div>
         </div>
     </header>
 
@@ -196,5 +251,32 @@
         {% endif %}
     </main>
 
+    {% if session.get('usuario_logado') %}
+    <script>
+        const root = document.documentElement;
+        root.style.setProperty('--cor-pele', '{{ session.get("cor_pele", "#F9B17B") }}');
+        root.style.setProperty('--cor-cabelo', '{{ session.get("cor_cabelo", "#4a2e1b") }}');
+        root.style.setProperty('--cor-roupa', '{{ session.get("cor_roupa", "#2d3748") }}');
+        root.style.setProperty('--cor-extra', '{{ session.get("cor_extra", "#00BFFF") }}');
+
+        async function carregarAvatarHeader() {
+            try {
+                const avatarUrl = "{{ url_for('static', filename='avatars/' + session.get('avatar_url', 'agente01.svg')) }}";
+                const res = await fetch(avatarUrl);
+                const svgText = await res.text();
+                const container = document.getElementById('header-avatar');
+                if (container) {
+                    container.innerHTML = svgText;
+                    const svgElement = container.querySelector('svg');
+                    if(svgElement) {
+                        svgElement.style.width = '100%';
+                        svgElement.style.height = '100%';
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        carregarAvatarHeader();
+    </script>
+    {% endif %}
 </body>
 </html>
