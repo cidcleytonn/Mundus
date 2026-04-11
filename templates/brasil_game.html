@@ -21,6 +21,12 @@
             --map-land: rgba(255,255,255,0.05);
             --map-stroke: rgba(255,255,255,0.2);
             --map-hover: rgba(16, 185, 129, 0.4);
+
+            /* Variáveis dinâmicas do Avatar (Fallback) */
+            --cor-pele: #F9B17B;
+            --cor-cabelo: #4a2e1b;
+            --cor-roupa: #2d3748;
+            --cor-extra: #00BFFF;
         }
 
         body.light-mode {
@@ -131,6 +137,12 @@
     <header>
         <a href="/" class="logo"><img src="{{ url_for('static', filename='mundus.png') }}" alt="Mundus Logo"> Mundus</a>
         <div class="nav-controls">
+            {% if session.get('usuario_logado') %}
+            <div class="perfil-usuario" style="display: flex; align-items: center; gap: 10px; margin-right: 10px;">
+                <div id="header-avatar" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--color-accent); background: rgba(0,0,0,0.2); overflow: hidden; display: flex; justify-content: center; align-items: center;"></div>
+                <span class="user-badge" style="font-size: 0.95rem; font-weight: 600; color: var(--text-muted); display: none;"><strong>{{ session.get('usuario_logado') }}</strong></span>
+            </div>
+            {% endif %}
             <button class="theme-toggle" onclick="toggleTheme()" title="Modo Visual">🌓</button>
             <a href="/desistir" class="btn-logout">Sair</a>
         </div>
@@ -226,6 +238,7 @@
             });
         });
 
+        // CRONÔMETRO VOLTOU!
         const tempoInicio = {{ tempo_inicio * 1000 }};
         const relogio = document.getElementById('cronometro');
         function atualizarCronometro() {
@@ -263,5 +276,33 @@
             });
         });
     </script>
+    
+    {% if session.get('usuario_logado') %}
+    <script>
+        const root = document.documentElement;
+        root.style.setProperty('--cor-pele', '{{ session.get("cor_pele", "#F9B17B") }}');
+        root.style.setProperty('--cor-cabelo', '{{ session.get("cor_cabelo", "#4a2e1b") }}');
+        root.style.setProperty('--cor-roupa', '{{ session.get("cor_roupa", "#2d3748") }}');
+        root.style.setProperty('--cor-extra', '{{ session.get("cor_extra", "#00BFFF") }}');
+
+        async function carregarAvatarHeader() {
+            try {
+                const avatarUrl = "{{ url_for('static', filename='avatars/' + session.get('avatar_url', 'agente01.svg')) }}";
+                const res = await fetch(avatarUrl);
+                const svgText = await res.text();
+                const container = document.getElementById('header-avatar');
+                if (container) {
+                    container.innerHTML = svgText;
+                    const svgElement = container.querySelector('svg');
+                    if(svgElement) {
+                        svgElement.style.width = '100%';
+                        svgElement.style.height = '100%';
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        carregarAvatarHeader();
+    </script>
+    {% endif %}
 </body>
 </html>
